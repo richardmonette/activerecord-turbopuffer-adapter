@@ -11,7 +11,9 @@ Gem::Specification.new do |s|
   s.email = "richard.monette@gmail.com"
   s.homepage = "https://github.com/richardmonette/turbopuffer-rails"
   s.license = "MIT"
-  s.metadata["allowed_push_host"] = "https://rubygems.org"
+  # Not ready to publish: point pushes at a host that does not exist so an
+  # accidental `gem push` is refused. Set to https://rubygems.org to release.
+  s.metadata["allowed_push_host"] = "https://rubygems.invalid"
   s.metadata["homepage_uri"] = s.homepage
   s.metadata["source_code_uri"] = s.homepage
   s.metadata["rubygems_mfa_required"] = true.to_s
