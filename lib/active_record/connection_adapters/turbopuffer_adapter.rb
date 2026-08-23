@@ -225,11 +225,8 @@ module ActiveRecord
       def perform_query(raw_connection, sql, binds, type_casted_binds, prepare:, notification_payload:, batch:)
         tpuf_query = sql.is_a?(Array) ? sql.first : sql
 
-        tpuf = Turbopuffer::Client.new(
-          region: "gcp-us-central1",
-        )
-
-        namespace = tpuf.namespace(tpuf_query.namespace)
+        namespace_name = @config[:namespace_prefix].present? ? "#{@config[:namespace_prefix]}-#{tpuf_query.namespace}" : tpuf_query.namespace
+        namespace = raw_connection.namespace(namespace_name)
 
         result = if tpuf_query.op == :insert
           turbopuffer_insert(namespace, tpuf_query)
@@ -273,23 +270,32 @@ module ActiveRecord
         result.affected_rows
       end
 
-      def connected?
-        true
-      end
-
-      def reconnect
-        true
-      end
-
       def get_full_version
         Turbopuffer::VERSION
       end
 
-      def active? = true
-      def connect; end          # or memoize an HTTP client
-      def reconnect!; end
-      def disconnect!; end
+      def active?
+        connected?
+      end
+
+      def connect
+        @raw_connection = Turbopuffer::Client.new(
+          region: @config[:region],
+          api_key: @config[:api_key]
+        )
+      end
+
+      def disconnect!
+        @raw_connection = nil
+      end
+
       def requires_reloading? = false
+
+      private
+
+      def reconnect
+        connect
+      end
     end
   end
 end
