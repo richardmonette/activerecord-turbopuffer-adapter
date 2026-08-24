@@ -71,6 +71,8 @@ module ActiveRecord
         :id
       end
 
+      def self.quote_column_name(name) = name.to_s
+
       def data_source_sql(name = nil, type: nil)
         "stubbed data_source_sql"
       end
@@ -179,17 +181,27 @@ module ActiveRecord
       end
 
       def turbopuffer_aggregate(namespace, query)
+        aggregate_alias, aggregate = query.aggregate_by
+
         tpuf_query_args = {
-          aggregate_by: { my_cool_count: [ "Count" ] }
+          aggregate_by: { aggregate_alias => aggregate }
         }
 
         tpuf_query_args[:filters] = query.filters.first if query.filters.present?
+        tpuf_query_args[:group_by] = query.group_by if query.group_by.present?
 
         result = namespace.query(tpuf_query_args)
 
-        count = result.aggregations[:my_cool_count]
+        if query.group_by.present?
+          fields = query.group_by + [ aggregate_alias ]
+          rows = result.aggregation_groups.map(&:to_h).map { |g| fields.map { |f| g[f.to_sym] } }
 
-        TurbopufferResult.new(fields: [ "count" ], rows: [ [ count ] ], affected_rows: 0)
+          TurbopufferResult.new(fields:, rows:, affected_rows: 0)
+        else
+          count = result.aggregations[aggregate_alias.to_sym]
+
+          TurbopufferResult.new(fields: [ aggregate_alias ], rows: [ [ count ] ], affected_rows: 0)
+        end
       end
 
       def turbopuffer_select(namespace, query)

@@ -41,6 +41,35 @@ class TurbopufferVisitorTest < ActiveSupport::TestCase
     end
   end
 
+  test "group becomes group_by" do
+    query, _binds = compile(Blog.group(:title))
+
+    assert_equal [ "title" ], query.group_by
+  end
+
+  test "multiple group attributes are supported" do
+    query, _binds = compile(Blog.group(:title, :created_at))
+
+    assert_equal [ "title", "created_at" ], query.group_by
+  end
+
+  test "grouped count aggregates per group" do
+    blogs = Blog.arel_table
+    relation = Blog.group(:title).select(blogs[Arel.star].count.as("count_all"), blogs[:title].as("title"))
+
+    query, _binds = compile(relation)
+
+    assert_equal [ "title" ], query.group_by
+    assert_equal [ "count_all", [ "Count" ] ], query.aggregate_by
+  end
+
+  test "count without a group has no group_by" do
+    query, _binds = compile(Blog.select(Blog.arel_table[Arel.star].count))
+
+    assert_equal [], query.group_by
+    assert_equal [ "count_all", [ "Count" ] ], query.aggregate_by
+  end
+
   test "raw SQL is not supported" do
     assert_raises NotImplementedError do
       compile(Blog.where("title = 'hello'"))

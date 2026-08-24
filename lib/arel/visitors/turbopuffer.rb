@@ -5,6 +5,7 @@ module Arel::Visitors
         op: @op,
         namespace: @namespace,
         filters: @filters,
+        group_by: @group_by,
         top_k: @top_k,
         rank_by: @rank_by,
         include_attributes: @include_attributes,
@@ -18,10 +19,10 @@ module Arel::Visitors
     def eql?(other) = other.is_a?(self.class) && to_h == other.to_h
     alias == eql?
 
-    attr_reader :op, :namespace, :filters, :top_k, :rank_by, :include_attributes, :upsert_rows, :aggregate_by
+    attr_reader :op, :namespace, :filters, :top_k, :rank_by, :include_attributes, :upsert_rows, :aggregate_by, :group_by
     attr_accessor :binds
 
-    def initialize(op:, namespace:, filters:, top_k:, rank_by:, include_attributes:, upsert_rows:, aggregate_by: nil)
+    def initialize(op:, namespace:, filters:, top_k:, rank_by:, include_attributes:, upsert_rows:, aggregate_by: nil, group_by: nil)
       @op = op
       @namespace = namespace
       @filters = filters
@@ -29,6 +30,7 @@ module Arel::Visitors
       @rank_by = rank_by
       @include_attributes = include_attributes
       @aggregate_by = aggregate_by
+      @group_by = group_by
       @upsert_rows = upsert_rows
 
       @binds = []
@@ -59,6 +61,10 @@ module Arel::Visitors
       x
     end
 
+    def count?(o)
+      o.class == Arel::Nodes::Count || (o.class == Arel::Nodes::As && o.left.class == Arel::Nodes::Count)
+    end
+
     def visit_Arel_Nodes_SelectStatement(o)
       raise NotImplementedError, "offset is not supported, filter on a sortable attribute for cursor pagination" if o.offset
       # https://turbopuffer.com/docs/query#ordering-by-attributes: "Ordering by
@@ -67,7 +73,7 @@ module Arel::Visitors
 
       core = o.cores.last
 
-      aggregates, attributes = core.projections.partition { |p| p.class == Arel::Nodes::Count }
+      aggregates, attributes = core.projections.partition { |p| count?(p) }
 
       TurbopufferQuery.new(
         op:                 :select,
@@ -76,6 +82,7 @@ module Arel::Visitors
         top_k:              o.limit && visit(o.limit),
         rank_by:            o.orders.map { |ord| visit(ord) },
         include_attributes: attributes.flat_map { |p| visit(p) },
+        group_by: core.groups.map { |g| visit(g) },
         aggregate_by: aggregates.any? ? visit(aggregates.first) : nil,
         upsert_rows: 0,
       )
@@ -176,8 +183,14 @@ module Arel::Visitors
     def visit_Arel_Nodes_In(o)          = [ visit(o.left), "In", visit(o.right) ]
 
     def visit_Arel_Nodes_Count(o)
-      [ "COUNT", "id" ]
+      [ "count_all", [ "Count" ] ]
     end
+
+    def visit_Arel_Nodes_As(o)
+      count?(o) ? [ o.right.to_s, [ "Count" ] ] : visit(o.left)
+    end
+
+    def visit_Arel_Nodes_Group(o) = visit(o.expr)
 
     # leaves — this is where binds get resolved
     def visit_Arel_Attributes_Attribute(o) = o.name.to_s
