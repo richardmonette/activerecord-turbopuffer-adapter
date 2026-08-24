@@ -61,6 +61,9 @@ module Arel::Visitors
 
     def visit_Arel_Nodes_SelectStatement(o)
       raise NotImplementedError, "offset is not supported, filter on a sortable attribute for cursor pagination" if o.offset
+      # https://turbopuffer.com/docs/query#ordering-by-attributes: "Ordering by
+      # multiple attributes isn't yet implemented."
+      raise NotImplementedError, "one ranking per query, sort in Ruby after loading" if o.orders.size > 1
 
       core = o.cores.last
 

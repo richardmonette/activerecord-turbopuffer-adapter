@@ -25,6 +25,22 @@ class TurbopufferVisitorTest < ActiveSupport::TestCase
     assert_equal 3, query.top_k
   end
 
+  test "a single order becomes rank_by" do
+    query, _binds = compile(Blog.order(:title))
+
+    assert_equal [ [ "title", "asc" ] ], query.rank_by
+  end
+
+  test "multiple orders are not supported" do
+    assert_raises NotImplementedError do
+      compile(Blog.order(:title).order(:created_at))
+    end
+
+    assert_raises NotImplementedError do
+      compile(Blog.order(:title, :created_at))
+    end
+  end
+
   test "raw SQL is not supported" do
     assert_raises NotImplementedError do
       compile(Blog.where("title = 'hello'"))
