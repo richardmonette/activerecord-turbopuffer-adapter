@@ -20,8 +20,6 @@ module ActiveRecord
     class TurbopufferAdapter < AbstractAdapter
       ADAPTER_NAME = "Turbopuffer"
 
-      class TransactionsNotSupported < StandardError; end
-
       class DateTimeType < ActiveRecord::Type::DateTime
         def serialize(value)
           value.iso8601

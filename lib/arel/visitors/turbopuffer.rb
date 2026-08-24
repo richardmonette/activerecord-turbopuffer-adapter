@@ -188,6 +188,8 @@ module Arel::Visitors
       [ o.field, o.method, o.arg ]
     end
 
+    def visit_Arel_Nodes_SqlLiteral(o) = raise(NotImplementedError, "raw SQL is not supported: #{o}")
+
     def visit_Array(o)   = o.map { |x| visit(x) }
     def visit_Integer(o) = o
     def visit_String(o)  = o

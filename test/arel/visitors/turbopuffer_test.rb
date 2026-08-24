@@ -24,4 +24,16 @@ class TurbopufferVisitorTest < ActiveSupport::TestCase
 
     assert_equal 3, query.top_k
   end
+
+  test "raw SQL is not supported" do
+    assert_raises NotImplementedError do
+      compile(Blog.where("title = 'hello'"))
+    end
+  end
+
+  test "joins are not supported" do
+    assert_raises NotImplementedError do
+      compile(Blog.joins("INNER JOIN posts ON posts.blog_id = blogs.id"))
+    end
+  end
 end
