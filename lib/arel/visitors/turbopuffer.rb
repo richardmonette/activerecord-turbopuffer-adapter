@@ -65,6 +65,12 @@ module Arel::Visitors
       o.class == Arel::Nodes::Count || (o.class == Arel::Nodes::As && o.left.class == Arel::Nodes::Count)
     end
 
+    def aggregate_for(o)
+      raise NotImplementedError, "distinct is not implemented yet" if o.distinct
+
+      [ "Count" ]
+    end
+
     def visit_Arel_Nodes_SelectStatement(o)
       raise NotImplementedError, "offset is not supported, filter on a sortable attribute for cursor pagination" if o.offset
       # https://turbopuffer.com/docs/query#ordering-by-attributes: "Ordering by
@@ -72,6 +78,8 @@ module Arel::Visitors
       raise NotImplementedError, "one ranking per query, sort in Ruby after loading" if o.orders.size > 1
 
       core = o.cores.last
+
+      raise NotImplementedError, "distinct is not implemented yet" if core.set_quantifier
 
       aggregates, attributes = core.projections.partition { |p| count?(p) }
 
@@ -182,12 +190,10 @@ module Arel::Visitors
     def visit_Arel_Nodes_LessThanOrEqual(o)    = [ visit(o.left), "Lte", visit(o.right) ]
     def visit_Arel_Nodes_In(o)          = [ visit(o.left), "In", visit(o.right) ]
 
-    def visit_Arel_Nodes_Count(o)
-      [ "count_all", [ "Count" ] ]
-    end
+    def visit_Arel_Nodes_Count(o) = [ "count_all", aggregate_for(o) ]
 
     def visit_Arel_Nodes_As(o)
-      count?(o) ? [ o.right.to_s, [ "Count" ] ] : visit(o.left)
+      count?(o) ? [ o.right.to_s, aggregate_for(o.left) ] : visit(o.left)
     end
 
     def visit_Arel_Nodes_Group(o) = visit(o.expr)

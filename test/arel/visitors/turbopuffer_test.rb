@@ -70,6 +70,18 @@ class TurbopufferVisitorTest < ActiveSupport::TestCase
     assert_equal [ "count_all", [ "Count" ] ], query.aggregate_by
   end
 
+  test "distinct is not implemented yet" do
+    assert_raises NotImplementedError do
+      compile(Blog.distinct)
+    end
+  end
+
+  test "distinct count is not implemented yet" do
+    assert_raises NotImplementedError do
+      compile(Blog.select(Blog.arel_table[:title].count(true)))
+    end
+  end
+
   test "raw SQL is not supported" do
     assert_raises NotImplementedError do
       compile(Blog.where("title = 'hello'"))
