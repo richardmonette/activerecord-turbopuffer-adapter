@@ -188,7 +188,11 @@ module ActiveRecord
         }
 
         tpuf_query_args[:filters] = query.filters.first if query.filters.present?
-        tpuf_query_args[:group_by] = query.group_by if query.group_by.present?
+
+        if query.group_by.present?
+          tpuf_query_args[:group_by] = query.group_by
+          tpuf_query_args[:top_k] = query.top_k if query.top_k.present?
+        end
 
         result = namespace.query(tpuf_query_args)
 

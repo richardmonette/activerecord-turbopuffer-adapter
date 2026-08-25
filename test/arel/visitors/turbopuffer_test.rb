@@ -63,6 +63,16 @@ class TurbopufferVisitorTest < ActiveSupport::TestCase
     assert_equal [ "count_all", [ "Count" ] ], query.aggregate_by
   end
 
+  test "limit on a grouped query caps the groups" do
+    blogs = Blog.arel_table
+    relation = Blog.group(:title).limit(2).select(blogs[Arel.star].count.as("count_all"), blogs[:title].as("title"))
+
+    query, _binds = compile(relation)
+
+    assert_equal [ "title" ], query.group_by
+    assert_equal 2, query.top_k
+  end
+
   test "count without a group has no group_by" do
     query, _binds = compile(Blog.select(Blog.arel_table[Arel.star].count))
 
