@@ -98,6 +98,24 @@ class TurbopufferVisitorTest < ActiveSupport::TestCase
     end
   end
 
+  test "where with an array becomes an In filter" do
+    query, _binds = compile(Blog.where(id: [ "a", "b" ]))
+
+    assert_equal [ [ "id", "In", [ "a", "b" ] ] ], query.filters
+  end
+
+  test "where.not with an array becomes a NotIn filter" do
+    query, _binds = compile(Blog.where.not(id: [ "a", "b" ]))
+
+    assert_equal [ [ "id", "NotIn", [ "a", "b" ] ] ], query.filters
+  end
+
+  test "an array filter casts its values" do
+    query, _binds = compile(Blog.where(created_at: [ Time.utc(2015, 1, 20), Time.utc(2015, 1, 21) ]))
+
+    assert_equal [ [ "created_at", "In", [ "2015-01-20T00:00:00Z", "2015-01-21T00:00:00Z" ] ] ], query.filters
+  end
+
   test "raw SQL is not supported" do
     assert_raises NotImplementedError do
       compile(Blog.where("title = 'hello'"))

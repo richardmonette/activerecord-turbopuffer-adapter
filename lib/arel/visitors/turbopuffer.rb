@@ -191,6 +191,10 @@ module Arel::Visitors
     def visit_Arel_Nodes_LessThanOrEqual(o)    = [ visit(o.left), "Lte", visit(o.right) ]
     def visit_Arel_Nodes_In(o)          = [ visit(o.left), "In", visit(o.right) ]
 
+    def visit_Arel_Nodes_HomogeneousIn(o)
+      [ visit(o.left), o.type == :in ? "In" : "NotIn", o.casted_values ]
+    end
+
     def visit_Arel_Nodes_Count(o) = [ "count_all", aggregate_for(o) ]
 
     def visit_Arel_Nodes_As(o)
