@@ -80,6 +80,7 @@ module Arel::Visitors
       core = o.cores.last
 
       raise NotImplementedError, "distinct is not implemented yet" if core.set_quantifier
+      raise NotImplementedError, "having is not implemented yet" if core.havings.any?
 
       aggregates, attributes = core.projections.partition { |p| count?(p) }
 

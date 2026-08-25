@@ -70,6 +70,12 @@ class TurbopufferVisitorTest < ActiveSupport::TestCase
     assert_equal [ "count_all", [ "Count" ] ], query.aggregate_by
   end
 
+  test "having is not implemented yet" do
+    assert_raises NotImplementedError do
+      compile(Blog.group(:title).having(Blog.arel_table[Arel.star].count.gt(3)))
+    end
+  end
+
   test "distinct is not implemented yet" do
     assert_raises NotImplementedError do
       compile(Blog.distinct)
