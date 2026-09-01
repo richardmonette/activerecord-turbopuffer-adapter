@@ -47,6 +47,11 @@ module Turbopuffer
             attribute
           end
 
+          def rank_by(*expression)
+            expression = expression.first if expression.size == 1
+            order(::Arel::Nodes::RankByNode.new(expression))
+          end
+
           def turbopuffer_namespace? = turbopuffer_attributes.any?
 
           def turbopuffer_schema_hash

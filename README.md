@@ -65,10 +65,22 @@ Document.where(published: true)
 Document.where(id: ["a", "b"])
 Document.where.not(id: ["a", "b"])
 Document.where(created_at: 1.week.ago..)
+
 Document.order(:title).limit(20)
 Document.group(:title).count
 Document.count
 Document.find("018f...")
+
+Document.rank_by("vector", "ANN", query_vector).limit(10)
+Document.rank_by("text", "BM25", "quick walrus").limit(10)
+
+Document
+  .where(public: true)
+  .rank_by(["Sum", [
+    ["Product", 2, ["category", "BM25", "mammal"]],
+    ["text", "BM25", "quick walrus"],
+  ]])
+  .limit(10)
 ```
 
 ### Using alongside Postgres

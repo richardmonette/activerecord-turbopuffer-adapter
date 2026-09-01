@@ -7,6 +7,7 @@ class TurbopufferVisitorTest < ActiveSupport::TestCase
     turbopuffer_attribute "id", "string", not_null: 1
     turbopuffer_attribute "title", "string"
     turbopuffer_attribute "created_at", "datetime"
+    turbopuffer_attribute "embedding", "[2]f32", ann: true, distance_metric: "cosine_distance"
   end
 
   def compile(relation)
@@ -23,6 +24,52 @@ class TurbopufferVisitorTest < ActiveSupport::TestCase
     query, _binds = compile(Blog.limit(3))
 
     assert_equal 3, query.top_k
+  end
+
+  test "rank_by builds a ranking from its arguments" do
+    query, _binds = compile(Blog.rank_by("embedding", "ANN", [ 0.1, 0.2 ]).limit(10))
+
+    assert_equal [ [ "embedding", "ANN", [ 0.1, 0.2 ] ] ], query.rank_by
+    assert_equal 10, query.top_k
+  end
+
+  test "rank_by accepts a full text ranking" do
+    query, _binds = compile(Blog.rank_by("title", "BM25", "quick walrus"))
+
+    assert_equal [ [ "title", "BM25", "quick walrus" ] ], query.rank_by
+  end
+
+  test "rank_by passes a composed ranking through untouched" do
+    ranking = [ "Sum", [
+      [ "Product", 2, [ "title", "BM25", "mammal" ] ],
+      [ "title", "BM25", "quick walrus" ]
+    ] ]
+
+    query, _binds = compile(Blog.rank_by(ranking))
+
+    assert_equal [ ranking ], query.rank_by
+  end
+
+  test "rank_by combines with a filter and a limit" do
+    relation = Blog.where(title: "walrus").rank_by("embedding", "ANN", [ 0.1, 0.2 ]).limit(5)
+
+    query, _binds = compile(relation)
+
+    assert_equal [ [ "title", "Eq", "walrus" ] ], query.filters
+    assert_equal [ [ "embedding", "ANN", [ 0.1, 0.2 ] ] ], query.rank_by
+    assert_equal 5, query.top_k
+  end
+
+  test "two different rankings are not supported" do
+    assert_raises NotImplementedError do
+      compile(Blog.rank_by("embedding", "ANN", [ 0.1 ]).rank_by("title", "BM25", "walrus"))
+    end
+  end
+
+  test "a ranking and an attribute order are not supported together" do
+    assert_raises NotImplementedError do
+      compile(Blog.rank_by("embedding", "ANN", [ 0.1 ]).order(:title))
+    end
   end
 
   test "a single order becomes rank_by" do

@@ -238,9 +238,7 @@ module Arel::Visitors
     def visit_Arel_Nodes_Ascending(o)      = [ visit(o.expr), "asc" ]
     def visit_Arel_Nodes_Descending(o)     = [ visit(o.expr), "desc" ]
 
-    def visit_Arel_Nodes_RankByNode(o)
-      [ o.field, o.method, o.arg ]
-    end
+    def visit_Arel_Nodes_RankByNode(o) = o.expression
 
     def visit_Arel_Nodes_SqlLiteral(o) = raise(NotImplementedError, "raw SQL is not supported: #{o}")
     def visit_Arel_Nodes_BoundSqlLiteral(o) = raise(NotImplementedError, "raw SQL is not supported: #{o.sql_with_placeholders}")
