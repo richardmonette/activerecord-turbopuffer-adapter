@@ -116,9 +116,91 @@ class TurbopufferVisitorTest < ActiveSupport::TestCase
     assert_equal [ [ "created_at", "In", [ "2015-01-20T00:00:00Z", "2015-01-21T00:00:00Z" ] ] ], query.filters
   end
 
+  test "an inclusive range becomes a pair of bounds" do
+    query, _binds = compile(Blog.where(created_at: Time.utc(2015, 1, 20)..Time.utc(2015, 1, 21)))
+
+    assert_equal [ [ "And", [
+      [ "created_at", "Gte", "2015-01-20T00:00:00Z" ],
+      [ "created_at", "Lte", "2015-01-21T00:00:00Z" ]
+    ] ] ], query.filters
+  end
+
+  test "an exclusive range excludes its upper bound" do
+    query, _binds = compile(Blog.where(created_at: Time.utc(2015, 1, 20)...Time.utc(2015, 1, 21)))
+
+    assert_equal [ [ "And", [
+      [ "created_at", "Gte", "2015-01-20T00:00:00Z" ],
+      [ "created_at", "Lt", "2015-01-21T00:00:00Z" ]
+    ] ] ], query.filters
+  end
+
+  test "a beginless range becomes a single upper bound" do
+    query, _binds = compile(Blog.where(created_at: ..Time.utc(2015, 1, 21)))
+
+    assert_equal [ [ "created_at", "Lte", "2015-01-21T00:00:00Z" ] ], query.filters
+  end
+
+  test "an endless range becomes a single lower bound" do
+    query, _binds = compile(Blog.where(created_at: Time.utc(2015, 1, 20)..))
+
+    assert_equal [ [ "created_at", "Gte", "2015-01-20T00:00:00Z" ] ], query.filters
+  end
+
+  test "a negated range is pushed down to the operators" do
+    query, _binds = compile(Blog.where.not(created_at: Time.utc(2015, 1, 20)..Time.utc(2015, 1, 21)))
+
+    assert_equal [ [ "Or", [
+      [ "created_at", "Lt", "2015-01-20T00:00:00Z" ],
+      [ "created_at", "Gt", "2015-01-21T00:00:00Z" ]
+    ] ] ], query.filters
+  end
+
+  test "several ranges for one attribute are or-ed together" do
+    range = Time.utc(2015, 1, 20)..Time.utc(2015, 1, 21)
+    other = Time.utc(2015, 2, 20)..Time.utc(2015, 2, 21)
+
+    query, _binds = compile(Blog.where(created_at: [ range, other ]))
+
+    assert_equal [ [ "Or", [
+      [ "And", [ [ "created_at", "Gte", "2015-01-20T00:00:00Z" ], [ "created_at", "Lte", "2015-01-21T00:00:00Z" ] ] ],
+      [ "And", [ [ "created_at", "Gte", "2015-02-20T00:00:00Z" ], [ "created_at", "Lte", "2015-02-21T00:00:00Z" ] ] ]
+    ] ] ], query.filters
+  end
+
+  test "a range filter combines with a ranking and a limit" do
+    relation = Blog.where(created_at: Time.utc(2015, 1, 20)..).order(created_at: :desc).limit(20)
+
+    query, _binds = compile(relation)
+
+    assert_equal [ [ "created_at", "Gte", "2015-01-20T00:00:00Z" ] ], query.filters
+    assert_equal [ [ "created_at", "desc" ] ], query.rank_by
+    assert_equal 20, query.top_k
+  end
+
+  test "a date bound is serialized as midnight UTC" do
+    query, _binds = compile(Blog.where(created_at: Date.new(2015, 1, 20)..Date.new(2015, 1, 21)))
+
+    assert_equal [ [ "And", [
+      [ "created_at", "Gte", "2015-01-20T00:00:00Z" ],
+      [ "created_at", "Lte", "2015-01-21T00:00:00Z" ]
+    ] ] ], query.filters
+  end
+
+  test "a bound in another zone is serialized as UTC" do
+    query, _binds = compile(Blog.where(created_at: Time.new(2015, 1, 20, 12, 30, 0, "-05:00")..))
+
+    assert_equal [ [ "created_at", "Gte", "2015-01-20T17:30:00Z" ] ], query.filters
+  end
+
   test "raw SQL is not supported" do
     assert_raises NotImplementedError do
       compile(Blog.where("title = 'hello'"))
+    end
+  end
+
+  test "raw SQL with bind parameters is not supported" do
+    assert_raises NotImplementedError do
+      compile(Blog.where("created_at > ?", Time.utc(2015, 1, 20)))
     end
   end
 

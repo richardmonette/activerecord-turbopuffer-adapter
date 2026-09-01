@@ -61,6 +61,24 @@ module Arel::Visitors
       x
     end
 
+    NEGATED_OPERATORS = {
+      "Eq" => "NotEq", "NotEq" => "Eq",
+      "In" => "NotIn", "NotIn" => "In",
+      "Gt" => "Lte",   "Lte"   => "Gt",
+      "Gte" => "Lt",   "Lt"    => "Gte"
+    }.freeze
+
+    def negate(filter)
+      case filter
+      in [ "And", children ] then [ "Or",  children.map { |c| negate(c) } ]
+      in [ "Or", children ]  then [ "And", children.map { |c| negate(c) } ]
+      in [ attribute, String => operator, value ] if NEGATED_OPERATORS.key?(operator)
+        [ attribute, NEGATED_OPERATORS.fetch(operator), value ]
+      else
+        raise NotImplementedError, "cannot negate filter: #{filter.inspect}"
+      end
+    end
+
     def count?(o)
       o.class == Arel::Nodes::Count || (o.class == Arel::Nodes::As && o.left.class == Arel::Nodes::Count)
     end
@@ -195,6 +213,15 @@ module Arel::Visitors
       [ visit(o.left), o.type == :in ? "In" : "NotIn", o.casted_values ]
     end
 
+    def visit_Arel_Nodes_Between(o)
+      attribute = visit(o.left)
+      low, high = o.right.children.map { |bound| visit(bound) }
+
+      [ "And", [ [ attribute, "Gte", low ], [ attribute, "Lte", high ] ] ]
+    end
+
+    def visit_Arel_Nodes_Not(o) = negate(visit(o.expr))
+
     def visit_Arel_Nodes_Count(o) = [ "count_all", aggregate_for(o) ]
 
     def visit_Arel_Nodes_As(o)
@@ -216,6 +243,7 @@ module Arel::Visitors
     end
 
     def visit_Arel_Nodes_SqlLiteral(o) = raise(NotImplementedError, "raw SQL is not supported: #{o}")
+    def visit_Arel_Nodes_BoundSqlLiteral(o) = raise(NotImplementedError, "raw SQL is not supported: #{o.sql_with_placeholders}")
 
     def visit_Array(o)   = o.map { |x| visit(x) }
     def visit_Integer(o) = o

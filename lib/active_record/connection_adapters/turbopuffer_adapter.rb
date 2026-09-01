@@ -22,7 +22,15 @@ module ActiveRecord
 
       class DateTimeType < ActiveRecord::Type::DateTime
         def serialize(value)
-          value.iso8601
+          casted = cast(value)
+
+          if casted.respond_to?(:utc)
+            casted.utc.iso8601
+          elsif casted.is_a?(::Date)
+            ::Time.utc(casted.year, casted.month, casted.day).iso8601
+          else
+            casted
+          end
         end
       end
 
