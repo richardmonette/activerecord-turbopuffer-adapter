@@ -1,38 +1,110 @@
-# Turbopuffer::Rails
+# turbopuffer-rails
 
-Welcome to your new gem! In this directory, you'll find the files you need to be able to package up your Ruby library into a gem. Put your Ruby code in the file `lib/turbopuffer/rails`. To experiment with that code, run `bin/console` for an interactive prompt.
+turbopuffer-rails is an unofficial, fan made Ruby on Rails ActiveRecord database adapter for turbopuffer. If you are looking for the the official turbopuffer Ruby gem see: https://github.com/turbopuffer/turbopuffer-ruby
 
-TODO: Delete this and the text above, and describe your gem
+The purpose of this gem is to provide Rails developers a familiar ActiveRecord style interface to turbopuffer.
 
 ## Installation
 
-Add this line to your application's Gemfile:
+To use this gem, install via Bundler by adding the following to your application's Gemfile:
 
 ```ruby
 gem 'turbopuffer-rails'
 ```
 
-And then execute:
-
-    $ bundle
-
-Or install it yourself as:
-
-    $ gem install turbopuffer-rails
-
 ## Usage
 
-TODO: Write usage instructions here
+### Configuration
 
-## Development
+In `config/database.yml` define a turbopuffer adapter:
 
-After checking out the repo, run `bin/setup` to install dependencies. Then, run `rake test` to run the tests. You can also run `bin/console` for an interactive prompt that will allow you to experiment.
 
-To install this gem onto your local machine, run `bundle exec rake install`. To release a new version, update the version number in `version.rb`, and then run `bundle exec rake release`, which will create a git tag for the version, push git commits and tags, and push the `.gem` file to [rubygems.org](https://rubygems.org).
+```yaml
+development:
+  adapter: turbopuffer
+  region: gcp-us-central1
+  api_key: <%= ENV["TURBOPUFFER_API_KEY"] %>
+```
+
+Optionally, you can define `namespace_prefix`, which is useful for separating namespace for production and development environments.
+
+### Defining a model
+
+```ruby
+class Document < ApplicationRecord
+  turbopuffer_attribute "id",        "uuid",   not_null: 1
+  turbopuffer_attribute "title",     "string", filterable: true
+  turbopuffer_attribute "body",      "string", full_text_search: true
+  turbopuffer_attribute "published", "bool",   filterable: true
+  turbopuffer_attribute "embedding", "[1536]f32", ann: true, distance_metric: "cosine_distance"
+end
+```
+
+By default the namespace is the model's table_name, but it can be customized with `self.table_name = "..."` Currently, ids are always UUIDv7 (which sort chronologically, to support pagination.)
+
+### Creating records
+
+```ruby
+Document.create!(title: "Hello", body: "...", published: true)
+
+doc = Document.new(title: "Draft")
+doc.save!
+
+doc.update!(published: true)
+doc.destroy
+```
+
+> Note that inserts are treated as upserts, such that writing a row whose id already exists is effectively treated as an update.
+
+> Note that transactions are not supported, interacting with that portion of the ActiveRecord API is no-op
+
+### Querying
+
+```ruby
+Document.where(published: true)
+Document.where(id: ["a", "b"])
+Document.where.not(id: ["a", "b"])
+Document.where(created_at: 1.week.ago..)
+Document.order(:title).limit(20)
+Document.group(:title).count
+Document.count
+Document.find("018f...")
+```
+
+### Using alongside Postgres
+
+While something of a lark, aspirationally the idea of this gem is to make turbopuffer usable as a primary db. In practice, however, using turbopuffer alongside a traditional primary db, such a postgres, is a supported, potentially more practical solution.
+
+A dual db approach can be setup as follows:
+
+```yaml
+development:
+  primary:
+    adapter: postgresql
+    database: myapp_development
+  turbopuffer:
+    adapter: turbopuffer
+    region: gcp-us-central1
+    api_key: <%= ENV["TURBOPUFFER_API_KEY"] %>
+    namespace_prefix: myapp-development
+```
+
+```ruby
+class TurbopufferRecord < ApplicationRecord
+  self.abstract_class = true
+
+  connects_to database: { writing: :turbopuffer, reading: :turbopuffer }
+end
+
+class Document < TurbopufferRecord
+  turbopuffer_attribute "id",   "uuid",   not_null: 1
+  turbopuffer_attribute "body", "string", full_text_search: true
+end
+```
 
 ## Contributing
 
-Bug reports and pull requests are welcome on GitHub at https://github.com/[USERNAME]/turbopuffer-rails.
+Bug reports and pull requests are welcome on GitHub at https://github.com/richardmonette/turbopuffer-rails. As this is an unoffical gem, please do not report bugs upstream.
 
 ## License
 
