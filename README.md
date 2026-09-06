@@ -1,6 +1,6 @@
 # turbopuffer-rails
 
-turbopuffer-rails is an unofficial, fan made Ruby on Rails ActiveRecord database adapter for turbopuffer. If you are looking for the the official turbopuffer Ruby gem see: https://github.com/turbopuffer/turbopuffer-ruby
+turbopuffer-rails is an unofficial, fan made Ruby on Rails ActiveRecord database adapter for turbopuffer. If you are looking for the official turbopuffer Ruby gem see: https://github.com/turbopuffer/turbopuffer-ruby
 
 The purpose of this gem is to provide Rails developers a familiar ActiveRecord style interface to turbopuffer.
 
@@ -36,11 +36,22 @@ class Document < ApplicationRecord
   turbopuffer_attribute "title",     "string", filterable: true
   turbopuffer_attribute "body",      "string", full_text_search: true
   turbopuffer_attribute "published", "bool",   filterable: true
-  turbopuffer_attribute "embedding", "[1536]f32", ann: true, distance_metric: "cosine_distance"
+  turbopuffer_attribute "embedding", "[1536]f32", ann: true
 end
 ```
 
 By default the namespace is the model's table_name, but it can be customized with `self.table_name = "..."` Currently, ids are always UUIDv7 (which sort chronologically, to support pagination.)
+
+The distance metric applies to all vector columns in a namespace and defaults to `cosine_distance`. To use `euclidean_squared` instead, declare it in the model:
+
+```ruby
+class Document < ApplicationRecord
+  turbopuffer_distance_metric "euclidean_squared"
+
+  turbopuffer_attribute "id",        "uuid",      not_null: 1
+  turbopuffer_attribute "embedding", "[1536]f32", ann: true
+end
+```
 
 ### Creating records
 
@@ -85,7 +96,7 @@ Document
 
 ### Using alongside Postgres
 
-While something of a lark, aspirationally the idea of this gem is to make turbopuffer usable as a primary db. In practice, however, using turbopuffer alongside a traditional primary db, such a postgres, is a supported, potentially more practical solution.
+While something of a lark, aspirationally the idea of this gem is to make turbopuffer conveniently usable as the primary db in a Rails app. In practice, however, using turbopuffer alongside a traditional primary db (such as postgres) is a supported, potentially more practical solution.
 
 A dual db approach can be setup as follows:
 

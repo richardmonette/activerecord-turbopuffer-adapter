@@ -4,9 +4,11 @@ module Turbopuffer
       module Model
         extend ActiveSupport::Concern
 
+        DISTANCE_METRICS = [ "cosine_distance", "euclidean_squared" ].freeze
+
         included do
-          class_attribute :turbopuffer_attributes,      instance_accessor: false, default: [].freeze
-          class_attribute :turbopuffer_distance_metric, instance_accessor: false, default: nil
+          class_attribute :turbopuffer_attributes,        instance_accessor: false, default: [].freeze
+          class_attribute :_turbopuffer_distance_metric,  instance_accessor: false, default: "cosine_distance"
         end
 
         class << self
@@ -34,7 +36,7 @@ module Turbopuffer
 
         class_methods do
           def turbopuffer_attribute(name, type, not_null: 0, filterable: false,
-                                    full_text_search: false, ann: false, distance_metric: nil)
+                                    full_text_search: false, ann: false)
             attribute = ::Turbopuffer::Rails::Schema::Attribute.new(
               name.to_s, type, not_null:, filterable:, full_text_search:, ann:
             )
@@ -42,9 +44,18 @@ module Turbopuffer
             self.turbopuffer_attributes =
               (turbopuffer_attributes.reject { |a| a.name == attribute.name } + [ attribute ]).freeze
 
-            self.turbopuffer_distance_metric = distance_metric if distance_metric
-
             attribute
+          end
+
+          def turbopuffer_distance_metric(value = nil)
+            return _turbopuffer_distance_metric if value.nil?
+
+            unless DISTANCE_METRICS.include?(value)
+              raise ArgumentError,
+                "distance metric must be one of #{DISTANCE_METRICS.join(", ")}, got #{value.inspect}"
+            end
+
+            self._turbopuffer_distance_metric = value
           end
 
           def rank_by(*expression)

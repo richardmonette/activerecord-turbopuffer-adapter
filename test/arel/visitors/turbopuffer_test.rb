@@ -7,7 +7,7 @@ class TurbopufferVisitorTest < ActiveSupport::TestCase
     turbopuffer_attribute "id", "string", not_null: 1
     turbopuffer_attribute "title", "string"
     turbopuffer_attribute "created_at", "datetime"
-    turbopuffer_attribute "embedding", "[2]f32", ann: true, distance_metric: "cosine_distance"
+    turbopuffer_attribute "embedding", "[2]f32", ann: true
   end
 
   def compile(relation)

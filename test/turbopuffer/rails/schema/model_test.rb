@@ -62,7 +62,7 @@ class Turbopuffer::Rails::Schema::ModelTest < ActiveSupport::TestCase
     model = build_model("Indexed") do
       turbopuffer_attribute "id", "string"
       turbopuffer_attribute "body", "string", filterable: true, full_text_search: true
-      turbopuffer_attribute "embedding", "[2]f32", ann: true, distance_metric: "cosine_distance"
+      turbopuffer_attribute "embedding", "[2]f32", ann: true
     end
 
     assert_equal({
@@ -70,8 +70,39 @@ class Turbopuffer::Rails::Schema::ModelTest < ActiveSupport::TestCase
       "body" => { type: "string", filterable: true, full_text_search: true },
       "embedding" => { type: "[2]f32", ann: true }
     }, model.turbopuffer_schema_hash)
+  end
+
+  test "the distance metric defaults to cosine_distance" do
+    model = build_model("DefaultMetric") { turbopuffer_attribute "id", "string" }
 
     assert_equal "cosine_distance", model.turbopuffer_distance_metric
+  end
+
+  test "the distance metric is set for the whole namespace" do
+    model = build_model("EuclideanMetric") do
+      turbopuffer_distance_metric "euclidean_squared"
+
+      turbopuffer_attribute "id", "string"
+    end
+
+    assert_equal "euclidean_squared", model.turbopuffer_distance_metric
+  end
+
+  test "a subclass inherits the distance metric" do
+    parent = build_model("MetricParent") do
+      turbopuffer_distance_metric "euclidean_squared"
+
+      turbopuffer_attribute "id", "string"
+    end
+    child = build_model("MetricChild", parent:)
+
+    assert_equal "euclidean_squared", child.turbopuffer_distance_metric
+  end
+
+  test "an unknown distance metric raises" do
+    assert_raises(ArgumentError) do
+      build_model("BadMetric") { turbopuffer_distance_metric "manhattan" }
+    end
   end
 
   test "an unregistered namespace raises with a useful message" do
