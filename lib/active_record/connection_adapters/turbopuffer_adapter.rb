@@ -200,22 +200,17 @@ module ActiveRecord
       end
 
       def turbopuffer_delete(namespace, query)
-        if query.filters.first[0] == "id"
-          # special case for deleting specific id
-          tpuf_result = namespace.write(
-            deletes: [
-              query.filters.first[2]
-            ]
-          )
+        attribute, operator, value = query.filters.first
 
-          TurbopufferResult.new(fields: [], rows: [], affected_rows: tpuf_result.rows_affected)
+        tpuf_result = if attribute == "id" && operator == "Eq"
+          namespace.write(deletes: [ value ])
+        elsif attribute == "id" && operator == "In"
+          namespace.write(deletes: value)
         else
-          tpuf_result = namespace.write(
-            delete_by_filter: query.filters.first
-          )
-
-          TurbopufferResult.new(fields: [], rows: [], affected_rows: tpuf_result.rows_affected)
+          namespace.write(delete_by_filter: query.filters.first)
         end
+
+        TurbopufferResult.new(fields: [], rows: [], affected_rows: tpuf_result.rows_affected)
       end
 
       def turbopuffer_aggregate(namespace, query)

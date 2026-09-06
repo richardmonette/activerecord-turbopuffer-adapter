@@ -13,6 +13,17 @@ class TurbopufferAdapterTest < ActiveSupport::TestCase
 
   UUID = /\A\h{8}-\h{4}-\h{4}-\h{4}-\h{12}\z/
 
+  FakeWriteResult = Struct.new(:rows_affected)
+
+  class FakeNamespace
+    attr_reader :last_write
+
+    def write(args)
+      @last_write = args
+      FakeWriteResult.new(1)
+    end
+  end
+
   def build_query(rows, on_duplicate: :skip)
     Item.with_connection do |connection|
       insert_all = ActiveRecord::InsertAll.new(Item.all, connection, rows, on_duplicate:)
@@ -62,6 +73,27 @@ class TurbopufferAdapterTest < ActiveSupport::TestCase
     query = build_query([ { title: "walrus", created_at: Time.utc(2015, 1, 20) } ])
 
     assert_equal "2015-01-20T00:00:00Z", query.upsert_rows.first["created_at"]
+  end
+
+  def delete_write(filters)
+    query = Arel::Visitors::TurbopufferQuery.new(op: :delete, namespace: "items", filters: filters)
+    namespace = FakeNamespace.new
+
+    Item.with_connection { |connection| connection.turbopuffer_delete(namespace, query) }
+
+    namespace.last_write
+  end
+
+  test "deleting by a single id uses deletes" do
+    assert_equal({ deletes: [ "a" ] }, delete_write([ [ "id", "Eq", "a" ] ]))
+  end
+
+  test "deleting by a list of ids uses deletes" do
+    assert_equal({ deletes: [ "a", "b" ] }, delete_write([ [ "id", "In", [ "a", "b" ] ] ]))
+  end
+
+  test "deleting by another attribute uses delete_by_filter" do
+    assert_equal({ delete_by_filter: [ "title", "Eq", "walrus" ] }, delete_write([ [ "title", "Eq", "walrus" ] ]))
   end
 
   test "the adapter reports upsert support" do
