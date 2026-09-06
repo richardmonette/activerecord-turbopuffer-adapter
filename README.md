@@ -1,6 +1,6 @@
-# turbopuffer-rails
+# activerecord-turbopuffer-adapter
 
-turbopuffer-rails is an unofficial, fan made Ruby on Rails ActiveRecord database adapter for turbopuffer. If you are looking for the official turbopuffer Ruby gem see: https://github.com/turbopuffer/turbopuffer-ruby
+activerecord-turbopuffer-adapter is an unofficial, fan made Ruby on Rails ActiveRecord database adapter for turbopuffer. If you are looking for the official turbopuffer Ruby gem see: https://github.com/turbopuffer/turbopuffer-ruby
 
 The purpose of this gem is to provide Rails developers a familiar ActiveRecord style interface to turbopuffer.
 
@@ -9,7 +9,7 @@ The purpose of this gem is to provide Rails developers a familiar ActiveRecord s
 To use this gem, install via Bundler by adding the following to your application's Gemfile:
 
 ```ruby
-gem 'turbopuffer-rails'
+gem 'activerecord-turbopuffer-adapter'
 ```
 
 ## Usage
@@ -75,7 +75,7 @@ Post.insert_all(
 )
 ```
 
-To avoid N+1s you can use insert/update_all.
+To avoid N+1s you can use insert_all/upsert_all.
 
 ### Querying
 
@@ -135,7 +135,7 @@ end
 
 ## Contributing
 
-Bug reports and pull requests are welcome on GitHub at https://github.com/richardmonette/turbopuffer-rails. As this is an unoffical gem, please do not report bugs upstream.
+Bug reports and pull requests are welcome on GitHub at https://github.com/richardmonette/activerecord-turbopuffer-adapter. As this is an unofficial gem, please do not report bugs upstream.
 
 ## License
 

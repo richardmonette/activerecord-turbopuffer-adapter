@@ -1,5 +1,5 @@
 module Turbopuffer
-  module Rails
+  module ActiveRecord
     module Schema
       class Attribute
         attr_reader :name, :type, :filterable, :full_text_search, :ann,

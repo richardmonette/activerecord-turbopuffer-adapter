@@ -46,11 +46,11 @@ module ActiveRecord
       EXTENDED_TYPE_MAPS = Concurrent::Map.new
 
       def column_definitions(table_name)
-        ::Turbopuffer::Rails::Schema::Model.for_table(table_name).turbopuffer_attributes
+        ::Turbopuffer::ActiveRecord::Schema::Model.for_table(table_name).turbopuffer_attributes
       end
 
       def tables
-        ::Turbopuffer::Rails::Schema::Model.namespaces.map(&:table_name).uniq
+        ::Turbopuffer::ActiveRecord::Schema::Model.namespaces.map(&:table_name).uniq
       end
       def views = []
       def data_sources = tables
@@ -165,7 +165,7 @@ module ActiveRecord
 
       def turbopuffer_insert(namespace, query)
         table_name = query.namespace
-        model = ::Turbopuffer::Rails::Schema::Model.for_table(table_name)
+        model = ::Turbopuffer::ActiveRecord::Schema::Model.for_table(table_name)
 
         tpuf_insert_args = {
           upsert_rows: query.upsert_rows,

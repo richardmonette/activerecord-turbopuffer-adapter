@@ -1,7 +1,7 @@
-require "turbopuffer/rails/version"
+require "turbopuffer/active_record/version"
 
 module Turbopuffer
-  module Rails
+  module ActiveRecord
     class Error < StandardError; end
 
     # Teaches Active Record that `adapter: turbopuffer` in database.yml maps to
@@ -17,4 +17,4 @@ module Turbopuffer
   end
 end
 
-require "turbopuffer/rails/railtie" if defined?(::Rails::Railtie)
+require "turbopuffer/active_record/railtie" if defined?(::Rails::Railtie)

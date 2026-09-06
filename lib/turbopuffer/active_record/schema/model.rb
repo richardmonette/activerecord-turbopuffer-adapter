@@ -1,5 +1,5 @@
 module Turbopuffer
-  module Rails
+  module ActiveRecord
     module Schema
       module Model
         extend ActiveSupport::Concern
@@ -13,7 +13,7 @@ module Turbopuffer
 
         class << self
           def namespaces
-            ActiveRecord::Base.descendants.select do |model|
+            ::ActiveRecord::Base.descendants.select do |model|
               model.respond_to?(:turbopuffer_namespace?) &&
                 !model.abstract_class? &&
                 model.turbopuffer_namespace?
@@ -37,7 +37,7 @@ module Turbopuffer
         class_methods do
           def turbopuffer_attribute(name, type, not_null: 0, filterable: false,
                                     full_text_search: false, ann: false)
-            attribute = ::Turbopuffer::Rails::Schema::Attribute.new(
+            attribute = ::Turbopuffer::ActiveRecord::Schema::Attribute.new(
               name.to_s, type, not_null:, filterable:, full_text_search:, ann:
             )
 

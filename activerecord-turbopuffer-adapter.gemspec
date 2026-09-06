@@ -1,15 +1,15 @@
 # frozen_string_literal: true
 
-require_relative "lib/turbopuffer/rails/version"
+require_relative "lib/turbopuffer/active_record/version"
 
 Gem::Specification.new do |s|
-  s.name = "turbopuffer-rails"
-  s.version = Turbopuffer::Rails::VERSION
-  s.summary = "Rails Active Record adapter for turbopuffer"
+  s.name = "activerecord-turbopuffer-adapter"
+  s.version = Turbopuffer::ActiveRecord::VERSION
+  s.summary = "Active Record adapter for turbopuffer"
   s.description = "Interact with turbopuffer through a native feeling Active Record database adapter"
   s.authors = ["Richard Monette"]
   s.email = "richard.monette@gmail.com"
-  s.homepage = "https://github.com/richardmonette/turbopuffer-rails"
+  s.homepage = "https://github.com/richardmonette/activerecord-turbopuffer-adapter"
   s.license = "MIT"
   # Not ready to publish: point pushes at a host that does not exist so an
   # accidental `gem push` is refused. Set to https://rubygems.org to release.

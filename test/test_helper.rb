@@ -4,10 +4,10 @@ require "active_record"
 require "active_support/test_case"
 require "minitest/autorun"
 
-require "turbopuffer/rails"
-require "turbopuffer/rails/schema"
+require "turbopuffer/active_record"
+require "turbopuffer/active_record/schema"
 
-Turbopuffer::Rails.register_adapter!
+Turbopuffer::ActiveRecord.register_adapter!
 
 # The adapter never opens a socket until a query is performed, so a pool can be
 # established without a server: `connect` is a no-op, `active?` is always true,
@@ -17,5 +17,5 @@ ActiveRecord::Base.establish_connection(adapter: "turbopuffer", database: "test"
 class TestRecord < ActiveRecord::Base
   self.abstract_class = true
 
-  include Turbopuffer::Rails::Schema::Model
+  include Turbopuffer::ActiveRecord::Schema::Model
 end

@@ -1,6 +1,6 @@
 require "test_helper"
 
-class Turbopuffer::Rails::Schema::ModelTest < ActiveSupport::TestCase
+class Turbopuffer::ActiveRecord::Schema::ModelTest < ActiveSupport::TestCase
   setup { @models = [] }
 
   def build_model(class_name, parent: TestRecord, table_name: nil, &block)
@@ -14,7 +14,7 @@ class Turbopuffer::Rails::Schema::ModelTest < ActiveSupport::TestCase
   test "derives the namespace from a multi-word model name" do
     build_model("BlogPost") { turbopuffer_attribute "id", "string" }
 
-    assert_equal "blog_posts", ::Turbopuffer::Rails::Schema::Model.for_table("blog_posts").table_name
+    assert_equal "blog_posts", ::Turbopuffer::ActiveRecord::Schema::Model.for_table("blog_posts").table_name
   end
 
   test "respects a table_name assigned above the attributes" do
@@ -22,7 +22,7 @@ class Turbopuffer::Rails::Schema::ModelTest < ActiveSupport::TestCase
       turbopuffer_attribute "id", "string"
     end
 
-    assert_equal "assigned_first", ::Turbopuffer::Rails::Schema::Model.for_table("assigned_first").table_name
+    assert_equal "assigned_first", ::Turbopuffer::ActiveRecord::Schema::Model.for_table("assigned_first").table_name
   end
 
   test "respects a table_name assigned below the attributes" do
@@ -31,7 +31,7 @@ class Turbopuffer::Rails::Schema::ModelTest < ActiveSupport::TestCase
       self.table_name = "assigned_afterwards"
     end
 
-    assert_equal "assigned_afterwards", ::Turbopuffer::Rails::Schema::Model.for_table("assigned_afterwards").table_name
+    assert_equal "assigned_afterwards", ::Turbopuffer::ActiveRecord::Schema::Model.for_table("assigned_afterwards").table_name
   end
 
   test "declaring an attribute twice does not duplicate it" do
@@ -55,7 +55,7 @@ class Turbopuffer::Rails::Schema::ModelTest < ActiveSupport::TestCase
     model = build_model("NotANamespace")
 
     assert_not model.turbopuffer_namespace?
-    assert_not_includes ::Turbopuffer::Rails::Schema::Model.namespaces, model
+    assert_not_includes ::Turbopuffer::ActiveRecord::Schema::Model.namespaces, model
   end
 
   test "the schema hash carries the index options" do
@@ -106,8 +106,8 @@ class Turbopuffer::Rails::Schema::ModelTest < ActiveSupport::TestCase
   end
 
   test "an unregistered namespace raises with a useful message" do
-    error = assert_raises(::Turbopuffer::Rails::Schema::UnknownNamespace) do
-      ::Turbopuffer::Rails::Schema::Model.for_table("nope")
+    error = assert_raises(::Turbopuffer::ActiveRecord::Schema::UnknownNamespace) do
+      ::Turbopuffer::ActiveRecord::Schema::Model.for_table("nope")
     end
 
     assert_match "nope", error.message
