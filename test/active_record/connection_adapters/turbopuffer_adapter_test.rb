@@ -85,15 +85,15 @@ class TurbopufferAdapterTest < ActiveSupport::TestCase
   end
 
   test "deleting by a single id uses deletes" do
-    assert_equal({ deletes: [ "a" ] }, delete_write([ [ "id", "Eq", "a" ] ]))
+    assert_equal({ deletes: [ "a" ] }, delete_write([ "id", "Eq", "a" ]))
   end
 
   test "deleting by a list of ids uses deletes" do
-    assert_equal({ deletes: [ "a", "b" ] }, delete_write([ [ "id", "In", [ "a", "b" ] ] ]))
+    assert_equal({ deletes: [ "a", "b" ] }, delete_write([ "id", "In", [ "a", "b" ] ]))
   end
 
   test "deleting by another attribute uses delete_by_filter" do
-    assert_equal({ delete_by_filter: [ "title", "Eq", "walrus" ] }, delete_write([ [ "title", "Eq", "walrus" ] ]))
+    assert_equal({ delete_by_filter: [ "title", "Eq", "walrus" ] }, delete_write([ "title", "Eq", "walrus" ]))
   end
 
   test "the adapter reports upsert support" do

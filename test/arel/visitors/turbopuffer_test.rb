@@ -55,7 +55,7 @@ class TurbopufferVisitorTest < ActiveSupport::TestCase
 
     query, _binds = compile(relation)
 
-    assert_equal [ [ "title", "Eq", "walrus" ] ], query.filters
+    assert_equal [ "title", "Eq", "walrus" ], query.filters
     assert_equal [ [ "embedding", "ANN", [ 0.1, 0.2 ] ] ], query.rank_by
     assert_equal 5, query.top_k
   end
@@ -148,58 +148,70 @@ class TurbopufferVisitorTest < ActiveSupport::TestCase
   test "where with an array becomes an In filter" do
     query, _binds = compile(Blog.where(id: [ "a", "b" ]))
 
-    assert_equal [ [ "id", "In", [ "a", "b" ] ] ], query.filters
+    assert_equal [ "id", "In", [ "a", "b" ] ], query.filters
+  end
+
+  test "separate where nodes are and-ed together" do
+    blogs = Blog.arel_table
+    manager = blogs.where(blogs[:title].eq("walrus")).where(blogs[:created_at].gt("2015-01-20T00:00:00Z")).project(blogs[:id])
+
+    query, _binds = Arel::Visitors::Turbopuffer.new.compile(manager.ast)
+
+    assert_equal [ "And", [
+      [ "title", "Eq", "walrus" ],
+      [ "created_at", "Gt", "2015-01-20T00:00:00Z" ]
+    ] ], query.filters
   end
 
   test "where.not with an array becomes a NotIn filter" do
     query, _binds = compile(Blog.where.not(id: [ "a", "b" ]))
 
-    assert_equal [ [ "id", "NotIn", [ "a", "b" ] ] ], query.filters
+    assert_equal [ "id", "NotIn", [ "a", "b" ] ], query.filters
   end
 
   test "an array filter casts its values" do
     query, _binds = compile(Blog.where(created_at: [ Time.utc(2015, 1, 20), Time.utc(2015, 1, 21) ]))
 
-    assert_equal [ [ "created_at", "In", [ "2015-01-20T00:00:00Z", "2015-01-21T00:00:00Z" ] ] ], query.filters
+    assert_equal [ "created_at", "In", [ "2015-01-20T00:00:00Z", "2015-01-21T00:00:00Z" ] ], query.filters
   end
 
   test "an inclusive range becomes a pair of bounds" do
     query, _binds = compile(Blog.where(created_at: Time.utc(2015, 1, 20)..Time.utc(2015, 1, 21)))
 
-    assert_equal [ [ "And", [
+    assert_equal [ "And", [
       [ "created_at", "Gte", "2015-01-20T00:00:00Z" ],
       [ "created_at", "Lte", "2015-01-21T00:00:00Z" ]
-    ] ] ], query.filters
+    ] ], query.filters
   end
 
   test "an exclusive range excludes its upper bound" do
     query, _binds = compile(Blog.where(created_at: Time.utc(2015, 1, 20)...Time.utc(2015, 1, 21)))
 
-    assert_equal [ [ "And", [
+    assert_equal [ "And", [
       [ "created_at", "Gte", "2015-01-20T00:00:00Z" ],
       [ "created_at", "Lt", "2015-01-21T00:00:00Z" ]
-    ] ] ], query.filters
+    ] ], query.filters
   end
 
   test "a beginless range becomes a single upper bound" do
     query, _binds = compile(Blog.where(created_at: ..Time.utc(2015, 1, 21)))
 
-    assert_equal [ [ "created_at", "Lte", "2015-01-21T00:00:00Z" ] ], query.filters
+    assert_equal [ "created_at", "Lte", "2015-01-21T00:00:00Z" ], query.filters
   end
 
   test "an endless range becomes a single lower bound" do
     query, _binds = compile(Blog.where(created_at: Time.utc(2015, 1, 20)..))
 
-    assert_equal [ [ "created_at", "Gte", "2015-01-20T00:00:00Z" ] ], query.filters
+    assert_equal [ "created_at", "Gte", "2015-01-20T00:00:00Z" ], query.filters
   end
 
   test "a negated range is pushed down to the operators" do
     query, _binds = compile(Blog.where.not(created_at: Time.utc(2015, 1, 20)..Time.utc(2015, 1, 21)))
 
-    assert_equal [ [ "Or", [
+    assert_equal [ "Or", [
       [ "created_at", "Lt", "2015-01-20T00:00:00Z" ],
       [ "created_at", "Gt", "2015-01-21T00:00:00Z" ]
-    ] ] ], query.filters
+    ] ], query.filters
   end
 
   test "several ranges for one attribute are or-ed together" do
@@ -208,10 +220,10 @@ class TurbopufferVisitorTest < ActiveSupport::TestCase
 
     query, _binds = compile(Blog.where(created_at: [ range, other ]))
 
-    assert_equal [ [ "Or", [
+    assert_equal [ "Or", [
       [ "And", [ [ "created_at", "Gte", "2015-01-20T00:00:00Z" ], [ "created_at", "Lte", "2015-01-21T00:00:00Z" ] ] ],
       [ "And", [ [ "created_at", "Gte", "2015-02-20T00:00:00Z" ], [ "created_at", "Lte", "2015-02-21T00:00:00Z" ] ] ]
-    ] ] ], query.filters
+    ] ], query.filters
   end
 
   test "a range filter combines with a ranking and a limit" do
@@ -219,7 +231,7 @@ class TurbopufferVisitorTest < ActiveSupport::TestCase
 
     query, _binds = compile(relation)
 
-    assert_equal [ [ "created_at", "Gte", "2015-01-20T00:00:00Z" ] ], query.filters
+    assert_equal [ "created_at", "Gte", "2015-01-20T00:00:00Z" ], query.filters
     assert_equal [ [ "created_at", "desc" ] ], query.rank_by
     assert_equal 20, query.top_k
   end
@@ -227,16 +239,16 @@ class TurbopufferVisitorTest < ActiveSupport::TestCase
   test "a date bound is serialized as midnight UTC" do
     query, _binds = compile(Blog.where(created_at: Date.new(2015, 1, 20)..Date.new(2015, 1, 21)))
 
-    assert_equal [ [ "And", [
+    assert_equal [ "And", [
       [ "created_at", "Gte", "2015-01-20T00:00:00Z" ],
       [ "created_at", "Lte", "2015-01-21T00:00:00Z" ]
-    ] ] ], query.filters
+    ] ], query.filters
   end
 
   test "a bound in another zone is serialized as UTC" do
     query, _binds = compile(Blog.where(created_at: Time.new(2015, 1, 20, 12, 30, 0, "-05:00")..))
 
-    assert_equal [ [ "created_at", "Gte", "2015-01-20T17:30:00Z" ] ], query.filters
+    assert_equal [ "created_at", "Gte", "2015-01-20T17:30:00Z" ], query.filters
   end
 
   test "the exists? projection selects id" do

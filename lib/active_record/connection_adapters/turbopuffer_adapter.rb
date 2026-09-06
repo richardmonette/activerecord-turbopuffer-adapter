@@ -187,7 +187,7 @@ module ActiveRecord
       def turbopuffer_update(namespace, query)
         tpuf_query_args = {
           patch_by_filter: {
-            filters: query.filters.first,
+            filters: query.filters,
             patch: query.upsert_rows.to_h.transform_keys(&:to_sym)
           }
         }
@@ -200,14 +200,14 @@ module ActiveRecord
       end
 
       def turbopuffer_delete(namespace, query)
-        attribute, operator, value = query.filters.first
+        attribute, operator, value = query.filters
 
         tpuf_result = if attribute == "id" && operator == "Eq"
           namespace.write(deletes: [ value ])
         elsif attribute == "id" && operator == "In"
           namespace.write(deletes: value)
         else
-          namespace.write(delete_by_filter: query.filters.first)
+          namespace.write(delete_by_filter: query.filters)
         end
 
         TurbopufferResult.new(fields: [], rows: [], affected_rows: tpuf_result.rows_affected)
@@ -220,7 +220,7 @@ module ActiveRecord
           aggregate_by: { aggregate_alias => aggregate }
         }
 
-        tpuf_query_args[:filters] = query.filters.first if query.filters.present?
+        tpuf_query_args[:filters] = query.filters if query.filters
 
         if query.group_by.present?
           tpuf_query_args[:group_by] = query.group_by
@@ -255,7 +255,7 @@ module ActiveRecord
 
           tpuf_query_args[:top_k] = query.top_k.present? ? query.top_k : 10_000
           tpuf_query_args[:rank_by] = query.rank_by.first if query.rank_by.present?
-          tpuf_query_args[:filters] = query.filters.first if query.filters.present?
+          tpuf_query_args[:filters] = query.filters if query.filters
 
           tpuf_result = namespace.query(
             tpuf_query_args

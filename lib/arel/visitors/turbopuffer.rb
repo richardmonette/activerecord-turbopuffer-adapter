@@ -58,8 +58,12 @@ module Arel::Visitors
 
     private
 
-    def conjoin(x)
-      x
+    def conjoin(filters)
+      case filters.size
+      when 0 then nil
+      when 1 then filters.first
+      else [ "And", filters ]
+      end
     end
 
     NEGATED_OPERATORS = {
