@@ -17,7 +17,7 @@ Gem::Specification.new do |s|
   s.metadata["homepage_uri"] = s.homepage
   s.metadata["source_code_uri"] = s.homepage
   s.metadata["rubygems_mfa_required"] = true.to_s
-  s.required_ruby_version = ">= 3.2.0"
+  s.required_ruby_version = ">= 3.3.0"
 
   s.files = Dir[
     "lib/**/*.rb",
