@@ -239,6 +239,13 @@ class TurbopufferVisitorTest < ActiveSupport::TestCase
     assert_equal [ [ "created_at", "Gte", "2015-01-20T17:30:00Z" ] ], query.filters
   end
 
+  test "the exists? projection selects id" do
+    query, _binds = compile(Blog.where(title: "walrus").select(Arel.sql("1 AS one")).limit(1))
+
+    assert_equal [ "id" ], query.include_attributes
+    assert_equal 1, query.top_k
+  end
+
   test "raw SQL is not supported" do
     assert_raises NotImplementedError do
       compile(Blog.where("title = 'hello'"))

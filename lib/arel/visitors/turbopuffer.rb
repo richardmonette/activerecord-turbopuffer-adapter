@@ -229,7 +229,11 @@ module Arel::Visitors
 
     def visit_Arel_Nodes_RankByNode(o) = o.expression
 
-    def visit_Arel_Nodes_SqlLiteral(o) = raise(NotImplementedError, "raw SQL is not supported: #{o}")
+    def visit_Arel_Nodes_SqlLiteral(o)
+      return "id" if o == ActiveRecord::FinderMethods::ONE_AS_ONE
+
+      raise NotImplementedError, "raw SQL is not supported: #{o}"
+    end
     def visit_Arel_Nodes_BoundSqlLiteral(o) = raise(NotImplementedError, "raw SQL is not supported: #{o.sql_with_placeholders}")
 
     def visit_Array(o)   = o.map { |x| visit(x) }
