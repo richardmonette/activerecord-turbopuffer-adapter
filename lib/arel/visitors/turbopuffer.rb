@@ -22,7 +22,8 @@ module Arel::Visitors
     attr_reader :op, :namespace, :filters, :top_k, :rank_by, :include_attributes, :upsert_rows, :aggregate_by, :group_by
     attr_accessor :binds
 
-    def initialize(op:, namespace:, filters:, top_k:, rank_by:, include_attributes:, upsert_rows:, aggregate_by: nil, group_by: nil)
+    def initialize(op:, namespace:, filters: nil, top_k: nil, rank_by: nil,
+                   include_attributes: nil, upsert_rows: nil, aggregate_by: nil, group_by: nil)
       @op = op
       @namespace = namespace
       @filters = filters
@@ -109,9 +110,8 @@ module Arel::Visitors
         top_k:              o.limit && visit(o.limit),
         rank_by:            o.orders.map { |ord| visit(ord) },
         include_attributes: attributes.flat_map { |p| visit(p) },
-        group_by: core.groups.map { |g| visit(g) },
-        aggregate_by: aggregates.any? ? visit(aggregates.first) : nil,
-        upsert_rows: 0,
+        group_by:           core.groups.map { |g| visit(g) },
+        aggregate_by:       aggregates.any? ? visit(aggregates.first) : nil
       )
     end
 
@@ -122,13 +122,9 @@ module Arel::Visitors
       rows    = o.values ? visit(o.values) : [ [] ]
 
       TurbopufferQuery.new(
-        op:        :insert,
-        namespace: visit(o.relation),
-        filters: nil,
-        top_k: nil,
-        rank_by: nil,
-        include_attributes: nil,
-        upsert_rows: rows.map { |row| columns.zip(row).to_h },
+        op:          :insert,
+        namespace:   visit(o.relation),
+        upsert_rows: rows.map { |row| columns.zip(row).to_h }
       )
     end
 
@@ -137,13 +133,10 @@ module Arel::Visitors
       rows    = o.values ? visit(o.values) : [ [] ]
 
       TurbopufferQuery.new(
-        op:        :update,
-        namespace: visit(o.relation),
-        filters:   conjoin(o.wheres.map { |w| visit(w) }),
-        top_k: nil,
-        rank_by: nil,
-        include_attributes: nil,
-        upsert_rows: rows # rows.map { |row| columns.zip(row).to_h },
+        op:          :update,
+        namespace:   visit(o.relation),
+        filters:     conjoin(o.wheres.map { |w| visit(w) }),
+        upsert_rows: rows
       )
     end
 
@@ -151,11 +144,7 @@ module Arel::Visitors
       TurbopufferQuery.new(
         op:        :delete,
         namespace: visit(o.relation),
-        filters:   conjoin(o.wheres.map { |w| visit(w) }),
-        top_k: nil,
-        rank_by: nil,
-        include_attributes: nil,
-        upsert_rows: nil
+        filters:   conjoin(o.wheres.map { |w| visit(w) })
       )
     end
 
@@ -245,7 +234,10 @@ module Arel::Visitors
 
     def visit_Array(o)   = o.map { |x| visit(x) }
     def visit_Integer(o) = o
+    def visit_Float(o)   = o
     def visit_String(o)  = o
+    def visit_TrueClass(o)  = o
+    def visit_FalseClass(o) = o
     def visit_NilClass(_) = nil
   end
 end

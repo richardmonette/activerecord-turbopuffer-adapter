@@ -57,6 +57,9 @@ module ActiveRecord
       def table_exists?(name) = tables.include?(name.to_s)
       def data_source_exists?(name) = table_exists?(name)
 
+      def supports_insert_on_duplicate_skip? = true
+      def supports_insert_on_duplicate_update? = true
+
       def supports_savepoints? = false
       def supports_ddl_transactions? = false
       def supports_transaction_isolation? = false
@@ -76,7 +79,11 @@ module ActiveRecord
       end
 
       def primary_key(table_name)
-        :id
+        "id"
+      end
+
+      def default_insert_value(column)
+        nil
       end
 
       def self.quote_column_name(name) = name.to_s
@@ -126,6 +133,27 @@ module ActiveRecord
           rowid: rowid,
           generated_type: generated_type
         )
+      end
+
+      def build_insert_sql(insert)
+        columns = insert.keys_including_timestamps.to_a
+        rows, _binds = insert.values_list
+
+        upsert_rows = rows.map do |row|
+          attributes = columns.zip(row).to_h
+          attributes["id"] ||= SecureRandom.uuid_v7
+          attributes
+        end
+
+        Arel::Visitors::TurbopufferQuery.new(
+          op:          :insert,
+          namespace:   insert.model.table_name,
+          upsert_rows: upsert_rows
+        )
+      end
+
+      def high_precision_current_timestamp
+        ::Time.current
       end
 
       def cacheable_query(klass, arel)

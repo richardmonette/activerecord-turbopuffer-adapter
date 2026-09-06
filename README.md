@@ -69,6 +69,14 @@ doc.destroy
 
 > Note that transactions are not supported, interacting with that portion of the ActiveRecord API is no-op
 
+```ruby
+Post.insert_all(
+  documents.map { |doc| { title: doc.title, body: doc.body, body_embedding: doc.embedding } }
+)
+```
+
+To avoid N+1s you can use insert/update_all.
+
 ### Querying
 
 ```ruby
