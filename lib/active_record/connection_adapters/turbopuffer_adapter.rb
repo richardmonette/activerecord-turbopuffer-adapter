@@ -183,32 +183,70 @@ module ActiveRecord
       end
 
       def turbopuffer_update(namespace, query)
-        tpuf_query_args = {
-          patch_by_filter: {
-            filters: query.filters,
-            patch: query.upsert_rows.to_h.transform_keys(&:to_sym)
-          }
-        }
+        patch = query.upsert_rows.to_h
+        pending = pending_patch_filter(patch)
+        filters = query.filters ? [ "And", [ query.filters, pending ] ] : pending
 
-        tpuf_result = namespace.write(
-          tpuf_query_args
+        affected = write_in_batches(
+          namespace,
+          patch_by_filter: { filters: filters, patch: patch.transform_keys(&:to_sym) },
+          patch_by_filter_allow_partial: true
         )
 
-        TurbopufferResult.new(fields: [], rows: [], affected_rows: tpuf_result.rows_affected)
+        TurbopufferResult.new(fields: [], rows: [], affected_rows: affected)
+      end
+
+      def write_in_batches(namespace, args)
+        affected = 0
+
+        loop do
+          tpuf_result = namespace.write(args)
+          affected += tpuf_result.rows_affected
+
+          break unless tpuf_result.rows_remaining
+
+          if tpuf_result.rows_affected.zero?
+            raise ActiveRecord::StatementInvalid, "write made no progress: rows still match #{args.inspect}"
+          end
+        end
+
+        affected
+      end
+
+      def pending_patch_filter(patch)
+        conditions = patch.flat_map do |attribute, value|
+          if value.nil?
+            [ [ attribute, "NotEq", nil ] ]
+          else
+            [ [ attribute, "NotEq", value ], [ attribute, "Eq", nil ] ]
+          end
+        end
+
+        [ "Or", conditions ]
       end
 
       def turbopuffer_delete(namespace, query)
         attribute, operator, value = query.filters
 
-        tpuf_result = if attribute == "id" && operator == "Eq"
-          namespace.write(deletes: [ value ])
+        affected = if query.filters.nil?
+          turbopuffer_delete_namespace(namespace)
+        elsif attribute == "id" && operator == "Eq"
+          namespace.write(deletes: [ value ]).rows_affected
         elsif attribute == "id" && operator == "In"
-          namespace.write(deletes: value)
+          namespace.write(deletes: value).rows_affected
         else
-          namespace.write(delete_by_filter: query.filters)
+          write_in_batches(namespace, delete_by_filter: query.filters, delete_by_filter_allow_partial: true)
         end
 
-        TurbopufferResult.new(fields: [], rows: [], affected_rows: tpuf_result.rows_affected)
+        TurbopufferResult.new(fields: [], rows: [], affected_rows: affected)
+      end
+
+      def turbopuffer_delete_namespace(namespace)
+        count = namespace.query(aggregate_by: { count: [ "Count" ] }).aggregations[:count]
+        namespace.delete_all
+        count
+      rescue Turbopuffer::Errors::NotFoundError
+        0
       end
 
       def turbopuffer_aggregate(namespace, query)

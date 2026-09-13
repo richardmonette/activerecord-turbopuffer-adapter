@@ -13,15 +13,33 @@ class TurbopufferAdapterTest < ActiveSupport::TestCase
 
   UUID = /\A\h{8}-\h{4}-\h{4}-\h{4}-\h{12}\z/
 
-  FakeWriteResult = Struct.new(:rows_affected)
+  FakeWriteResult = Struct.new(:rows_affected, :rows_remaining)
+  FakeQueryResult = Struct.new(:aggregations)
 
   class FakeNamespace
-    attr_reader :last_write
+    attr_reader :writes, :deleted
+
+    def initialize(results = [ FakeWriteResult.new(1, false) ], count: 0)
+      @results = results
+      @count = count
+      @writes = []
+      @deleted = false
+    end
 
     def write(args)
-      @last_write = args
-      FakeWriteResult.new(1)
+      @writes << args
+      @results.size > 1 ? @results.shift : @results.first
     end
+
+    def query(args)
+      FakeQueryResult.new({ count: @count })
+    end
+
+    def delete_all
+      @deleted = true
+    end
+
+    def last_write = @writes.last
   end
 
   def build_query(rows, on_duplicate: :skip)
@@ -75,13 +93,15 @@ class TurbopufferAdapterTest < ActiveSupport::TestCase
     assert_equal "2015-01-20T00:00:00Z", query.upsert_rows.first["created_at"]
   end
 
-  def delete_write(filters)
+  def run_delete(filters, namespace = FakeNamespace.new)
     query = Arel::Visitors::TurbopufferQuery.new(op: :delete, namespace: "items", filters: filters)
-    namespace = FakeNamespace.new
+    result = Item.with_connection { |connection| connection.turbopuffer_delete(namespace, query) }
 
-    Item.with_connection { |connection| connection.turbopuffer_delete(namespace, query) }
+    [ namespace, result ]
+  end
 
-    namespace.last_write
+  def delete_write(filters)
+    run_delete(filters).first.last_write
   end
 
   test "deleting by a single id uses deletes" do
@@ -93,7 +113,80 @@ class TurbopufferAdapterTest < ActiveSupport::TestCase
   end
 
   test "deleting by another attribute uses delete_by_filter" do
-    assert_equal({ delete_by_filter: [ "title", "Eq", "walrus" ] }, delete_write([ "title", "Eq", "walrus" ]))
+    assert_equal(
+      { delete_by_filter: [ "title", "Eq", "walrus" ], delete_by_filter_allow_partial: true },
+      delete_write([ "title", "Eq", "walrus" ])
+    )
+  end
+
+  test "a filtered delete_all keeps deleting while rows remain" do
+    namespace = FakeNamespace.new([ FakeWriteResult.new(50_000, true), FakeWriteResult.new(5, false) ])
+
+    _namespace, result = run_delete([ "title", "Eq", "walrus" ], namespace)
+
+    assert_equal 2, namespace.writes.size
+    assert_equal 50_005, result.affected_rows
+  end
+
+  test "an unfiltered delete_all deletes the namespace and returns the count" do
+    namespace = FakeNamespace.new(count: 3)
+
+    _namespace, result = run_delete(nil, namespace)
+
+    assert namespace.deleted
+    assert_empty namespace.writes
+    assert_equal 3, result.affected_rows
+  end
+
+  def run_update(filters, patch, namespace = FakeNamespace.new)
+    query = Arel::Visitors::TurbopufferQuery.new(op: :update, namespace: "items", filters: filters, upsert_rows: patch.to_a)
+    result = Item.with_connection { |connection| connection.turbopuffer_update(namespace, query) }
+
+    [ namespace, result ]
+  end
+
+  test "update_all patches only rows that still need the change" do
+    namespace, _result = run_update(nil, { "published" => true })
+
+    assert_equal({
+      patch_by_filter: {
+        filters: [ "Or", [ [ "published", "NotEq", true ], [ "published", "Eq", nil ] ] ],
+        patch: { published: true }
+      },
+      patch_by_filter_allow_partial: true
+    }, namespace.last_write)
+  end
+
+  test "a filtered update_all combines the filter with the pending condition" do
+    namespace, _result = run_update([ "title", "Eq", "walrus" ], { "published" => true })
+
+    assert_equal [ "And", [
+      [ "title", "Eq", "walrus" ],
+      [ "Or", [ [ "published", "NotEq", true ], [ "published", "Eq", nil ] ] ]
+    ] ], namespace.last_write[:patch_by_filter][:filters]
+  end
+
+  test "patching to nil only targets rows that still have a value" do
+    namespace, _result = run_update(nil, { "title" => nil })
+
+    assert_equal [ "Or", [ [ "title", "NotEq", nil ] ] ], namespace.last_write[:patch_by_filter][:filters]
+  end
+
+  test "update_all keeps patching while rows remain" do
+    namespace = FakeNamespace.new([ FakeWriteResult.new(50_000, true), FakeWriteResult.new(10, false) ])
+
+    _namespace, result = run_update(nil, { "published" => true }, namespace)
+
+    assert_equal 2, namespace.writes.size
+    assert_equal 50_010, result.affected_rows
+  end
+
+  test "update_all raises when a patch makes no progress" do
+    namespace = FakeNamespace.new([ FakeWriteResult.new(0, true) ])
+
+    assert_raises(ActiveRecord::StatementInvalid) do
+      run_update(nil, { "published" => true }, namespace)
+    end
   end
 
   test "the adapter reports upsert support" do
