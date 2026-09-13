@@ -145,6 +145,24 @@ class TurbopufferVisitorTest < ActiveSupport::TestCase
     end
   end
 
+  test "where with nil matches documents missing the attribute" do
+    query, _binds = compile(Blog.where(title: nil))
+
+    assert_equal [ "title", "Eq", nil ], query.filters
+  end
+
+  test "where.not with nil matches documents having the attribute" do
+    query, _binds = compile(Blog.where.not(title: nil))
+
+    assert_equal [ "title", "NotEq", nil ], query.filters
+  end
+
+  test "an array containing nil splits the nil into its own condition" do
+    query, _binds = compile(Blog.where(title: [ "walrus", nil ]))
+
+    assert_equal [ "Or", [ [ "title", "Eq", "walrus" ], [ "title", "Eq", nil ] ] ], query.filters
+  end
+
   test "where with an array becomes an In filter" do
     query, _binds = compile(Blog.where(id: [ "a", "b" ]))
 
