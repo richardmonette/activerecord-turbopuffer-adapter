@@ -7,8 +7,9 @@
 /spec/reports/
 /tmp/
 
-# Libraries resolve fresh against the gemspec's version ranges
 Gemfile.lock
 
 *.gem
 .DS_Store
+
+ROADMAP.md

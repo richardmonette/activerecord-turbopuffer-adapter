@@ -4,6 +4,7 @@ require "turbopuffer"
 
 require "arel/visitors/turbopuffer"
 require "arel/nodes/rank_by_node"
+require "turbopuffer/active_record/type"
 
 module ActiveRecord
   module ConnectionAdapters
@@ -20,25 +21,22 @@ module ActiveRecord
     class TurbopufferAdapter < AbstractAdapter
       ADAPTER_NAME = "Turbopuffer"
 
-      class DateTimeType < ActiveRecord::Type::DateTime
-        def serialize(value)
-          casted = cast(value)
-
-          if casted.respond_to?(:utc)
-            casted.utc.iso8601
-          elsif casted.is_a?(::Date)
-            ::Time.utc(casted.year, casted.month, casted.day).iso8601
-          else
-            casted
-          end
-        end
-      end
-
       class << self
         private
+
         def initialize_type_map(m)
-          super
-          register_class_with_limit(m, "datetime", DateTimeType)
+          m.register_type "string",   Type::String.new
+          m.register_type "uuid",     Type::String.new
+          m.register_type "int",      Type::Integer.new(limit: 8)
+          m.register_type "uint",     ::Turbopuffer::ActiveRecord::Type::UnsignedInteger.new(limit: 8)
+          m.register_type "bool",     Type::Boolean.new
+          m.register_type "datetime", ::Turbopuffer::ActiveRecord::Type::DateTime.new
+          m.register_type(%r{\A\[\].+\z}) do |type|
+            ::Turbopuffer::ActiveRecord::Type::Array.new(m.lookup(type.delete_prefix("[]")))
+          end
+          m.register_type(%r{\A\[\d+\]f(?:16|32)\z}) do |type|
+            ::Turbopuffer::ActiveRecord::Type::Vector.new(type[/\d+/].to_i)
+          end
         end
       end
 
