@@ -20,7 +20,6 @@ module Arel::Visitors
     alias == eql?
 
     attr_reader :op, :namespace, :filters, :top_k, :rank_by, :include_attributes, :upsert_rows, :aggregate_by, :group_by
-    attr_accessor :binds
 
     def initialize(op:, namespace:, filters: nil, top_k: nil, rank_by: nil,
                    include_attributes: nil, upsert_rows: nil, aggregate_by: nil, group_by: nil)
@@ -33,8 +32,6 @@ module Arel::Visitors
       @aggregate_by = aggregate_by
       @group_by = group_by
       @upsert_rows = upsert_rows
-
-      @binds = []
     end
   end
 
@@ -115,8 +112,7 @@ module Arel::Visitors
     end
 
     def visit_Arel_Nodes_UpdateStatement(o)
-      # columns = o.columns.map { |c| visit(c) }
-      rows    = o.values ? visit(o.values) : [ [] ]
+      rows = o.values ? visit(o.values) : [ [] ]
 
       TurbopufferQuery.new(
         op:          :update,

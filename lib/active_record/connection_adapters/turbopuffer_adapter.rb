@@ -86,9 +86,7 @@ module ActiveRecord
 
       def self.quote_column_name(name) = name.to_s
 
-      def data_source_sql(name = nil, type: nil)
-        "stubbed data_source_sql"
-      end
+      def view_exists?(name) = false
 
       def write_query?(sql)
         query = sql.is_a?(Array) ? sql.first : sql
@@ -105,32 +103,7 @@ module ActiveRecord
       end
 
       def new_column_from_field(table_name, field, definitions)
-        default = field.dflt_value
-
-        type_metadata = nil # fetch_type_metadata(field["type"])
-        default_value = nil # extract_value_from_default(default)
-        generated_type = nil # extract_generated_type(field)
-
-          # if generated_type.present?
-          default_function = default
-        # else
-        #   default_function = extract_default_function(default_value, default)
-        # end
-
-        rowid = false # is_column_the_rowid?(field, definitions)
-
-        Column.new(
-          field.name,
-          lookup_cast_type(field.type),
-          default_value,
-          type_metadata,
-          field.notnull.to_i == 0,
-          default_function,
-          collation: field.collation,
-          auto_increment: field.auto_increment,
-          rowid: rowid,
-          generated_type: generated_type
-        )
+        Column.new(field.name, lookup_cast_type(field.type), nil, nil, field.notnull.to_i == 0)
       end
 
       def build_insert_sql(insert)
@@ -159,7 +132,9 @@ module ActiveRecord
         [ CachedQuery.new(arel.ast, visitor), binds ]
       end
 
-      TurbopufferResult = Struct.new(:fields, :rows, :affected_rows, keyword_init: true)
+      TurbopufferResult = Struct.new(:fields, :rows, :affected_rows, keyword_init: true) do
+        def self.affected(count) = new(fields: [], rows: [], affected_rows: count)
+      end
 
       def turbopuffer_insert(namespace, query)
         table_name = query.namespace
@@ -193,7 +168,7 @@ module ActiveRecord
           patch_by_filter_allow_partial: true
         )
 
-        TurbopufferResult.new(fields: [], rows: [], affected_rows: affected)
+        TurbopufferResult.affected(affected)
       end
 
       def write_in_batches(namespace, args)
@@ -238,7 +213,7 @@ module ActiveRecord
           write_in_batches(namespace, delete_by_filter: query.filters, delete_by_filter_allow_partial: true)
         end
 
-        TurbopufferResult.new(fields: [], rows: [], affected_rows: affected)
+        TurbopufferResult.affected(affected)
       end
 
       def turbopuffer_delete_namespace(namespace)
@@ -284,45 +259,39 @@ module ActiveRecord
           query.include_attributes
         end
 
-        begin
-          tpuf_query_args = {
-            include_attributes: fields
-          }
+        tpuf_query_args = {
+          include_attributes: fields,
+          top_k: query.top_k.present? ? query.top_k : 10_000
+        }
 
-          tpuf_query_args[:top_k] = query.top_k.present? ? query.top_k : 10_000
-          tpuf_query_args[:rank_by] = query.rank_by.first if query.rank_by.present?
-          tpuf_query_args[:filters] = query.filters if query.filters
+        tpuf_query_args[:rank_by] = query.rank_by.first if query.rank_by.present?
+        tpuf_query_args[:filters] = query.filters if query.filters
 
-          tpuf_result = namespace.query(
-            tpuf_query_args
-          )
+        tpuf_result = namespace.query(tpuf_query_args)
 
-          rows = tpuf_result.rows.map(&:to_h).map { |r| fields.map { |f| r[f.to_sym] } }
+        rows = tpuf_result.rows.map(&:to_h).map { |r| fields.map { |f| r[f.to_sym] } }
 
-          TurbopufferResult.new(fields:, rows:, affected_rows: 0)
-        rescue Turbopuffer::Errors::NotFoundError
-          TurbopufferResult.new(fields: [], rows: [], affected_rows: 0)
-        end
+        TurbopufferResult.new(fields:, rows:, affected_rows: 0)
+      rescue Turbopuffer::Errors::NotFoundError
+        TurbopufferResult.affected(0)
       end
 
       def perform_query(raw_connection, sql, binds, type_casted_binds, prepare:, notification_payload:, batch:)
         tpuf_query = sql.is_a?(Array) ? sql.first : sql
 
-        namespace_name = @config[:namespace_prefix].present? ? "#{@config[:namespace_prefix]}-#{tpuf_query.namespace}" : tpuf_query.namespace
+        namespace_name = [ @config[:namespace_prefix], tpuf_query.namespace ].compact_blank.join("-")
         namespace = raw_connection.namespace(namespace_name)
 
-        result = if tpuf_query.op == :insert
-          turbopuffer_insert(namespace, tpuf_query)
-        elsif tpuf_query.op == :update
-          turbopuffer_update(namespace, tpuf_query)
-        elsif tpuf_query.op == :delete
-          turbopuffer_delete(namespace, tpuf_query)
-        elsif tpuf_query.op == :select && tpuf_query.aggregate_by
-          turbopuffer_aggregate(namespace, tpuf_query)
-        elsif tpuf_query.op == :select
-          turbopuffer_select(namespace, tpuf_query)
-        else
-          TurbopufferResult.new(fields: [], rows: [], affected_rows: 0)
+        result = case tpuf_query.op
+        when :insert then turbopuffer_insert(namespace, tpuf_query)
+        when :update then turbopuffer_update(namespace, tpuf_query)
+        when :delete then turbopuffer_delete(namespace, tpuf_query)
+        when :select
+          if tpuf_query.aggregate_by
+            turbopuffer_aggregate(namespace, tpuf_query)
+          else
+            turbopuffer_select(namespace, tpuf_query)
+          end
         end
 
         notification_payload[:row_count] = result.rows.size
