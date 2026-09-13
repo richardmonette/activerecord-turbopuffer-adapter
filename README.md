@@ -24,9 +24,10 @@ development:
   adapter: turbopuffer
   region: gcp-us-central1
   api_key: <%= ENV["TURBOPUFFER_API_KEY"] %>
+  database_tasks: false
 ```
 
-Optionally, you can define `namespace_prefix`, which is useful for separating namespace for production and development environments.
+Optionally, you can define `namespace_prefix`, which is useful for separating namespaces for production and development environments.
 
 ### Defining a model
 
@@ -69,13 +70,13 @@ doc.destroy
 
 > Note that transactions are not supported, interacting with that portion of the ActiveRecord API is no-op
 
+To avoid N+1s you can use insert_all/upsert_all.
+
 ```ruby
-Post.insert_all(
+Document.insert_all(
   documents.map { |doc| { title: doc.title, body: doc.body, body_embedding: doc.embedding } }
 )
 ```
-
-To avoid N+1s you can use insert_all/upsert_all.
 
 ### Querying
 
@@ -94,13 +95,15 @@ Document.rank_by("vector", "ANN", query_vector).limit(10)
 Document.rank_by("text", "BM25", "quick walrus").limit(10)
 
 Document
-  .where(public: true)
+  .where(published: true)
   .rank_by(["Sum", [
     ["Product", 2, ["category", "BM25", "mammal"]],
     ["text", "BM25", "quick walrus"],
   ]])
   .limit(10)
 ```
+
+> Note that turbopuffer has a limit on the maximum number of documents returned (https://turbopuffer.com/docs/query#param-limit), so Document.all.to_a etc. will only return at most 10,000 items
 
 ### Using alongside Postgres
 
@@ -118,6 +121,7 @@ development:
     region: gcp-us-central1
     api_key: <%= ENV["TURBOPUFFER_API_KEY"] %>
     namespace_prefix: myapp-development
+    database_tasks: false
 ```
 
 ```ruby
