@@ -66,24 +66,6 @@ module Arel::Visitors
       end
     end
 
-    NEGATED_OPERATORS = {
-      "Eq" => "NotEq", "NotEq" => "Eq",
-      "In" => "NotIn", "NotIn" => "In",
-      "Gt" => "Lte",   "Lte"   => "Gt",
-      "Gte" => "Lt",   "Lt"    => "Gte"
-    }.freeze
-
-    def negate(filter)
-      case filter
-      in [ "And", children ] then [ "Or",  children.map { |c| negate(c) } ]
-      in [ "Or", children ]  then [ "And", children.map { |c| negate(c) } ]
-      in [ attribute, String => operator, value ] if NEGATED_OPERATORS.key?(operator)
-        [ attribute, NEGATED_OPERATORS.fetch(operator), value ]
-      else
-        raise NotImplementedError, "cannot negate filter: #{filter.inspect}"
-      end
-    end
-
     def count?(o)
       o.class == Arel::Nodes::Count || (o.class == Arel::Nodes::As && o.left.class == Arel::Nodes::Count)
     end
@@ -213,7 +195,17 @@ module Arel::Visitors
       [ "And", [ [ attribute, "Gte", low ], [ attribute, "Lte", high ] ] ]
     end
 
-    def visit_Arel_Nodes_Not(o) = negate(visit(o.expr))
+    def visit_Arel_Nodes_Not(o) = [ "Not", visit(o.expr) ]
+
+    def visit_Arel_Nodes_Regexp(o)
+      pattern = visit(o.right)
+
+      [ visit(o.left), "Regex", o.case_sensitive ? pattern : "(?i)#{pattern}" ]
+    end
+
+    def visit_Arel_Nodes_NotRegexp(o) = [ "Not", visit_Arel_Nodes_Regexp(o) ]
+
+    def visit_Arel_Nodes_Glob(o) = [ visit(o.left), o.case_sensitive ? "Glob" : "IGlob", visit(o.right) ]
 
     def visit_Arel_Nodes_Count(o) = [ "count_all", aggregate_for(o) ]
 

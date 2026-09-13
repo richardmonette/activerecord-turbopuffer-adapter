@@ -3,7 +3,7 @@
 require "turbopuffer"
 
 require "arel/visitors/turbopuffer"
-require "arel/nodes/rank_by_node"
+require "turbopuffer/active_record/schema"
 require "turbopuffer/active_record/type"
 
 module ActiveRecord

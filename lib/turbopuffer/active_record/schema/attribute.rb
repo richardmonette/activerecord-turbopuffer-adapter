@@ -4,10 +4,11 @@ module Turbopuffer
       class Attribute
         TYPES = %r{\A(?:\[\])?(?:string|uuid|int|uint|bool|datetime)\z|\A\[\d+\]f(?:16|32)\z}
 
-        attr_reader :name, :type, :filterable, :full_text_search, :ann,
+        attr_reader :name, :type, :filterable, :full_text_search, :ann, :glob, :regex,
                     :notnull, :collation, :auto_increment, :dflt_value
 
-        def initialize(name, type, not_null: 0, filterable: false, full_text_search: false, ann: false)
+        def initialize(name, type, not_null: 0, filterable: false, full_text_search: false,
+                       ann: false, glob: false, regex: false)
           type = type.to_s
 
           unless TYPES.match?(type)
@@ -19,6 +20,8 @@ module Turbopuffer
           @filterable = filterable
           @full_text_search = full_text_search
           @ann = ann
+          @glob = glob
+          @regex = regex
 
           @notnull = not_null
           @collation = nil

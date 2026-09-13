@@ -72,6 +72,14 @@ class Turbopuffer::ActiveRecord::Schema::ModelTest < ActiveSupport::TestCase
     }, model.turbopuffer_schema_hash)
   end
 
+  test "the schema hash carries the glob and regex options" do
+    model = build_model("Patterned") do
+      turbopuffer_attribute "title", "string", glob: true, regex: true
+    end
+
+    assert_equal({ "title" => { type: "string", glob: true, regex: true } }, model.turbopuffer_schema_hash)
+  end
+
   test "the distance metric defaults to cosine_distance" do
     model = build_model("DefaultMetric") { turbopuffer_attribute "id", "string" }
 

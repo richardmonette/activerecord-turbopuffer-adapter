@@ -36,9 +36,9 @@ module Turbopuffer
 
         class_methods do
           def turbopuffer_attribute(name, type, not_null: 0, filterable: false,
-                                    full_text_search: false, ann: false)
+                                    full_text_search: false, ann: false, glob: false, regex: false)
             attribute = ::Turbopuffer::ActiveRecord::Schema::Attribute.new(
-              name.to_s, type, not_null:, filterable:, full_text_search:, ann:
+              name.to_s, type, not_null:, filterable:, full_text_search:, ann:, glob:, regex:
             )
 
             self.turbopuffer_attributes =
@@ -63,6 +63,22 @@ module Turbopuffer
             order(::Arel::Nodes::RankByNode.new(expression))
           end
 
+          def glob(pattern, case_sensitive: true)
+            ::Turbopuffer::ActiveRecord::Glob.new(pattern, case_sensitive:)
+          end
+
+          def predicate_builder
+            @predicate_builder ||= super.tap do |builder|
+              builder.register_handler(::Regexp, lambda { |attribute, regexp|
+                ::Arel::Nodes::Regexp.new(attribute, ::Arel::Nodes.build_quoted(regexp.source), !regexp.casefold?)
+              })
+
+              builder.register_handler(::Turbopuffer::ActiveRecord::Glob, lambda { |attribute, glob|
+                ::Arel::Nodes::Glob.new(attribute, ::Arel::Nodes.build_quoted(glob.pattern), case_sensitive: glob.case_sensitive)
+              })
+            end
+          end
+
           def turbopuffer_namespace? = turbopuffer_attributes.any?
 
           def turbopuffer_schema_hash
@@ -72,6 +88,8 @@ module Turbopuffer
               attrs[:filterable] = true if attribute.filterable
               attrs[:full_text_search] = true if attribute.full_text_search
               attrs[:ann] = true if attribute.ann
+              attrs[:glob] = true if attribute.glob
+              attrs[:regex] = true if attribute.regex
 
               schema[attribute.name] = attrs
             end

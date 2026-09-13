@@ -223,13 +223,55 @@ class TurbopufferVisitorTest < ActiveSupport::TestCase
     assert_equal [ "created_at", "Gte", "2015-01-20T00:00:00Z" ], query.filters
   end
 
-  test "a negated range is pushed down to the operators" do
+  test "a negated range is wrapped in Not" do
     query, _binds = compile(Blog.where.not(created_at: Time.utc(2015, 1, 20)..Time.utc(2015, 1, 21)))
 
-    assert_equal [ "Or", [
-      [ "created_at", "Lt", "2015-01-20T00:00:00Z" ],
-      [ "created_at", "Gt", "2015-01-21T00:00:00Z" ]
-    ] ], query.filters
+    assert_equal [ "Not", [ "And", [
+      [ "created_at", "Gte", "2015-01-20T00:00:00Z" ],
+      [ "created_at", "Lte", "2015-01-21T00:00:00Z" ]
+    ] ] ], query.filters
+  end
+
+  test "a regexp becomes a Regex filter" do
+    query, _binds = compile(Blog.where(title: /^walrus/))
+
+    assert_equal [ "title", "Regex", "^walrus" ], query.filters
+  end
+
+  test "a case-insensitive regexp sets the inline flag" do
+    query, _binds = compile(Blog.where(title: /walrus/i))
+
+    assert_equal [ "title", "Regex", "(?i)walrus" ], query.filters
+  end
+
+  test "where.not with a regexp is wrapped in Not" do
+    query, _binds = compile(Blog.where.not(title: /walrus/))
+
+    assert_equal [ "Not", [ "title", "Regex", "walrus" ] ], query.filters
+  end
+
+  test "a glob becomes a Glob filter" do
+    query, _binds = compile(Blog.where(title: Blog.glob("walrus*")))
+
+    assert_equal [ "title", "Glob", "walrus*" ], query.filters
+  end
+
+  test "a case-insensitive glob becomes IGlob" do
+    query, _binds = compile(Blog.where(title: Blog.glob("walrus*", case_sensitive: false)))
+
+    assert_equal [ "title", "IGlob", "walrus*" ], query.filters
+  end
+
+  test "where.not with a glob is wrapped in Not" do
+    query, _binds = compile(Blog.where.not(title: Blog.glob("walrus*")))
+
+    assert_equal [ "Not", [ "title", "Glob", "walrus*" ] ], query.filters
+  end
+
+  test "a glob composes with or" do
+    query, _binds = compile(Blog.where(title: Blog.glob("walrus*")).or(Blog.where(title: "narwhal")))
+
+    assert_equal [ "Or", [ [ "title", "Glob", "walrus*" ], [ "title", "Eq", "narwhal" ] ] ], query.filters
   end
 
   test "several ranges for one attribute are or-ed together" do
