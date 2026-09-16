@@ -172,23 +172,40 @@ module Arel::Visitors
       [ visit(o.left), visit(o.right) ]
     end
 
-    def visit_Arel_Nodes_Equality(o) = [ visit(o.left), "Eq",  visit(o.right) ]
-    def visit_Arel_Nodes_NotEqual(o) = [ visit(o.left), "NotEq", visit(o.right) ]
-    def visit_Arel_Nodes_GreaterThan(o) = [ visit(o.left), "Gt", visit(o.right) ]
-    def visit_Arel_Nodes_GreaterThanOrEqual(o) = [ visit(o.left), "Gte", visit(o.right) ]
-    def visit_Arel_Nodes_LessThan(o)    = [ visit(o.left), "Lt", visit(o.right) ]
-    def visit_Arel_Nodes_LessThanOrEqual(o)    = [ visit(o.left), "Lte", visit(o.right) ]
-    def visit_Arel_Nodes_In(o)          = [ visit(o.left), "In", visit(o.right) ]
+    ARRAY_OPERATORS = {
+      "Eq" => "Contains", "NotEq" => "NotContains",
+      "In" => "ContainsAny", "NotIn" => "NotContainsAny",
+      "Lt" => "AnyLt", "Lte" => "AnyLte", "Gt" => "AnyGt", "Gte" => "AnyGte"
+    }.freeze
+
+    def comparison(node, operator, value = visit(node.right))
+      operator = ARRAY_OPERATORS.fetch(operator) if array_attribute?(node.left) && !value.nil?
+
+      [ visit(node.left), operator, value ]
+    end
+
+    def array_attribute?(node)
+      node.is_a?(Arel::Attributes::Attribute) &&
+        node.able_to_type_cast? &&
+        node.type_caster.is_a?(::Turbopuffer::ActiveRecord::Type::Array)
+    end
+
+    def visit_Arel_Nodes_Equality(o)           = comparison(o, "Eq")
+    def visit_Arel_Nodes_NotEqual(o)           = comparison(o, "NotEq")
+    def visit_Arel_Nodes_GreaterThan(o)        = comparison(o, "Gt")
+    def visit_Arel_Nodes_GreaterThanOrEqual(o) = comparison(o, "Gte")
+    def visit_Arel_Nodes_LessThan(o)           = comparison(o, "Lt")
+    def visit_Arel_Nodes_LessThanOrEqual(o)    = comparison(o, "Lte")
+    def visit_Arel_Nodes_In(o)                 = comparison(o, "In")
 
     def visit_Arel_Nodes_HomogeneousIn(o)
-      [ visit(o.left), o.type == :in ? "In" : "NotIn", o.casted_values ]
+      comparison(o, o.type == :in ? "In" : "NotIn", o.casted_values)
     end
 
     def visit_Arel_Nodes_Between(o)
-      attribute = visit(o.left)
       low, high = o.right.children.map { |bound| visit(bound) }
 
-      [ "And", [ [ attribute, "Gte", low ], [ attribute, "Lte", high ] ] ]
+      [ "And", [ comparison(o, "Gte", low), comparison(o, "Lte", high) ] ]
     end
 
     def visit_Arel_Nodes_Not(o) = [ "Not", visit(o.expr) ]

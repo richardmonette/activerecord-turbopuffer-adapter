@@ -86,6 +86,15 @@ Document.where(id: ["a", "b"])
 Document.where.not(id: ["a", "b"])
 Document.where(created_at: 1.week.ago..)
 
+Document.where(title: /^walrus/i)
+Document.where(title: Document.glob("walrus*"))
+
+Document.where(tags: "walrus")
+Document.where(tags: ["walrus", "narwhal"])
+Document.where.not(tags: "walrus")
+Document.where(tags: nil)
+Document.where(scores: 90..)
+
 Document.order(:title).limit(20)
 Document.group(:title).count
 Document.count

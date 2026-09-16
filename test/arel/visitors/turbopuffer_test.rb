@@ -8,6 +8,8 @@ class TurbopufferVisitorTest < ActiveSupport::TestCase
     turbopuffer_attribute "title", "string"
     turbopuffer_attribute "created_at", "datetime"
     turbopuffer_attribute "embedding", "[2]f32", ann: true
+    turbopuffer_attribute "tags", "[]string"
+    turbopuffer_attribute "scores", "[]int"
   end
 
   def compile(relation)
@@ -230,6 +232,48 @@ class TurbopufferVisitorTest < ActiveSupport::TestCase
       [ "created_at", "Gte", "2015-01-20T00:00:00Z" ],
       [ "created_at", "Lte", "2015-01-21T00:00:00Z" ]
     ] ] ], query.filters
+  end
+
+  test "a value on an array attribute becomes Contains" do
+    query, _binds = compile(Blog.where(tags: "walrus"))
+
+    assert_equal [ "tags", "Contains", "walrus" ], query.filters
+  end
+
+  test "a list on an array attribute becomes ContainsAny" do
+    query, _binds = compile(Blog.where(tags: [ "walrus", "narwhal" ]))
+
+    assert_equal [ "tags", "ContainsAny", [ "walrus", "narwhal" ] ], query.filters
+  end
+
+  test "where.not on an array attribute becomes NotContains" do
+    query, _binds = compile(Blog.where.not(tags: "walrus"))
+
+    assert_equal [ "tags", "NotContains", "walrus" ], query.filters
+  end
+
+  test "where.not with a list on an array attribute becomes NotContainsAny" do
+    query, _binds = compile(Blog.where.not(tags: [ "walrus", "narwhal" ]))
+
+    assert_equal [ "tags", "NotContainsAny", [ "walrus", "narwhal" ] ], query.filters
+  end
+
+  test "nil on an array attribute still matches documents missing it" do
+    query, _binds = compile(Blog.where(tags: nil))
+
+    assert_equal [ "tags", "Eq", nil ], query.filters
+  end
+
+  test "a bound on an array attribute becomes AnyGte" do
+    query, _binds = compile(Blog.where(scores: 90..))
+
+    assert_equal [ "scores", "AnyGte", 90 ], query.filters
+  end
+
+  test "a range on an array attribute uses the Any comparisons" do
+    query, _binds = compile(Blog.where(scores: 1..5))
+
+    assert_equal [ "And", [ [ "scores", "AnyGte", 1 ], [ "scores", "AnyLte", 5 ] ] ], query.filters
   end
 
   test "a regexp becomes a Regex filter" do

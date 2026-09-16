@@ -10,15 +10,19 @@ module Turbopuffer
         end
 
         def serialize(value)
-          return if value.nil?
-
-          ::Array.wrap(value).map { |element| @element_type.serialize(element) }
+          case value
+          when nil then nil
+          when ::Array then value.map { |element| @element_type.serialize(element) }
+          else @element_type.serialize(value)
+          end
         end
 
         def deserialize(value)
-          return if value.nil?
-
-          value.map { |element| @element_type.deserialize(element) }
+          case value
+          when nil then nil
+          when ::Array then value.map { |element| @element_type.deserialize(element) }
+          else @element_type.deserialize(value)
+          end
         end
       end
     end

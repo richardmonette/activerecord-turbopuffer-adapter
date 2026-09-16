@@ -50,6 +50,11 @@ class TurbopufferTypeMapTest < ActiveSupport::TestCase
     assert_equal [ "2015-01-20T00:00:00Z" ], serialized
   end
 
+  test "a scalar on an array attribute serializes through the element type" do
+    assert_equal "walrus", Typed.type_for_attribute("tags").serialize("walrus")
+    assert_equal "2015-01-20T00:00:00Z", Typed.type_for_attribute("seen_at").serialize(Time.utc(2015, 1, 20))
+  end
+
   test "datetime arrays deserialize to times" do
     deserialized = Typed.type_for_attribute("seen_at").deserialize([ "2015-01-20T00:00:00Z" ])
 
