@@ -251,6 +251,8 @@ module ActiveRecord
 
           TurbopufferResult.new(fields: [ aggregate_alias ], rows: [ [ count ] ], affected_rows: 0)
         end
+      rescue Turbopuffer::Errors::NotFoundError
+        TurbopufferResult.affected(0)
       end
 
       def turbopuffer_select(namespace, query)

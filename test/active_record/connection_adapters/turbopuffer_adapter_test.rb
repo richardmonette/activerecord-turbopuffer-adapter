@@ -189,6 +189,19 @@ class TurbopufferAdapterTest < ActiveSupport::TestCase
     end
   end
 
+  class MissingNamespace
+    def query(args)
+      raise Turbopuffer::Errors::NotFoundError.new(url: "", status: 404, headers: {}, body: nil, request: nil, response: nil)
+    end
+  end
+
+  test "counting a namespace that does not exist yet returns an empty result" do
+    query = Arel::Visitors::TurbopufferQuery.new(op: :select, namespace: "items", aggregate_by: [ "count_all", [ "Count" ] ], group_by: [])
+    result = Item.with_connection { |connection| connection.turbopuffer_aggregate(MissingNamespace.new, query) }
+
+    assert_empty result.rows
+  end
+
   test "the adapter reports upsert support" do
     Item.with_connection do |connection|
       assert connection.supports_insert_on_duplicate_skip?
