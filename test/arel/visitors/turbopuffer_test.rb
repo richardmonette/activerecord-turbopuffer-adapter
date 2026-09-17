@@ -10,6 +10,7 @@ class TurbopufferVisitorTest < ActiveSupport::TestCase
     turbopuffer_attribute "embedding", "[2]f32", ann: true
     turbopuffer_attribute "tags", "[]string"
     turbopuffer_attribute "scores", "[]int"
+    turbopuffer_attribute "views", "int"
   end
 
   def compile(relation)
@@ -127,6 +128,39 @@ class TurbopufferVisitorTest < ActiveSupport::TestCase
 
     assert_equal [], query.group_by
     assert_equal [ "count_all", [ "Count" ] ], query.aggregate_by
+  end
+
+  test "sum becomes a Sum aggregate" do
+    query, _binds = compile(Blog.select(Blog.arel_table[:views].sum))
+
+    assert_equal [ "sum_views", [ "Sum", "views" ] ], query.aggregate_by
+  end
+
+  test "grouped sum aggregates per group" do
+    blogs = Blog.arel_table
+    relation = Blog.group(:title).select(blogs[:views].sum.as("sum_views"), blogs[:title].as("title"))
+
+    query, _binds = compile(relation)
+
+    assert_equal [ "title" ], query.group_by
+    assert_equal [ "sum_views", [ "Sum", "views" ] ], query.aggregate_by
+  end
+
+  test "counting a column only counts documents that have it" do
+    query, _binds = compile(Blog.where(views: 1).select(Blog.arel_table[:title].count))
+
+    assert_equal [ "And", [ [ "views", "Eq", 1 ], [ "title", "NotEq", nil ] ] ], query.filters
+    assert_equal [ "count_all", [ "Count" ] ], query.aggregate_by
+  end
+
+  test "minimum, maximum and average are not supported" do
+    blogs = Blog.arel_table
+
+    [ blogs[:views].minimum, blogs[:views].maximum, blogs[:views].average ].each do |aggregate|
+      error = assert_raises(NotImplementedError) { compile(Blog.select(aggregate)) }
+
+      assert_match "Count and Sum", error.message
+    end
   end
 
   test "having is not implemented yet" do

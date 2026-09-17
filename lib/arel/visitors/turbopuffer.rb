@@ -63,14 +63,31 @@ module Arel::Visitors
       end
     end
 
-    def count?(o)
-      o.class == Arel::Nodes::Count || (o.class == Arel::Nodes::As && o.left.class == Arel::Nodes::Count)
+    def aggregate_node(projection)
+      projection.is_a?(Arel::Nodes::As) ? projection.left : projection
+    end
+
+    def aggregate?(projection)
+      aggregate_node(projection).is_a?(Arel::Nodes::Function)
+    end
+
+    def counted_attribute(projection)
+      node = aggregate_node(projection)
+      return unless node.is_a?(Arel::Nodes::Count)
+
+      expression = node.expressions.first
+      expression if expression.is_a?(Arel::Attributes::Attribute)
     end
 
     def aggregate_for(o)
       raise NotImplementedError, "distinct is not implemented yet" if o.distinct
 
-      [ "Count" ]
+      case o
+      when Arel::Nodes::Count then [ "Count" ]
+      when Arel::Nodes::Sum then [ "Sum", visit(o.expressions.first) ]
+      else
+        raise NotImplementedError, "#{o.class.name.demodulize} is not supported, turbopuffer aggregates are Count and Sum"
+      end
     end
 
     def visit_Arel_Nodes_SelectStatement(o)
@@ -84,17 +101,22 @@ module Arel::Visitors
       raise NotImplementedError, "distinct is not implemented yet" if core.set_quantifier
       raise NotImplementedError, "having is not implemented yet" if core.havings.any?
 
-      aggregates, attributes = core.projections.partition { |p| count?(p) }
+      aggregates, attributes = core.projections.partition { |p| aggregate?(p) }
+      aggregate = aggregates.first
+
+      filters = core.wheres.map { |w| visit(w) }
+      counted = aggregate && counted_attribute(aggregate)
+      filters << [ visit(counted), "NotEq", nil ] if counted
 
       TurbopufferQuery.new(
         op:                 :select,
         namespace:          visit(core.source),
-        filters:            conjoin(core.wheres.map { |w| visit(w) }),
+        filters:            conjoin(filters),
         top_k:              o.limit && visit(o.limit),
         rank_by:            o.orders.map { |ord| visit(ord) },
         include_attributes: attributes.flat_map { |p| visit(p) },
         group_by:           core.groups.map { |g| visit(g) },
-        aggregate_by:       aggregates.any? ? visit(aggregates.first) : nil
+        aggregate_by:       aggregate && visit(aggregate)
       )
     end
 
@@ -220,10 +242,12 @@ module Arel::Visitors
 
     def visit_Arel_Nodes_Glob(o) = [ visit(o.left), o.case_sensitive ? "Glob" : "IGlob", visit(o.right) ]
 
-    def visit_Arel_Nodes_Count(o) = [ "count_all", aggregate_for(o) ]
+    def visit_Arel_Nodes_Count(o)    = [ "count_all", aggregate_for(o) ]
+    def visit_Arel_Nodes_Sum(o)      = [ "sum_#{visit(o.expressions.first)}", aggregate_for(o) ]
+    def visit_Arel_Nodes_Function(o) = aggregate_for(o)
 
     def visit_Arel_Nodes_As(o)
-      count?(o) ? [ o.right.to_s, aggregate_for(o.left) ] : visit(o.left)
+      aggregate?(o) ? [ o.right.to_s, aggregate_for(o.left) ] : visit(o.left)
     end
 
     def visit_Arel_Nodes_Group(o) = visit(o.expr)

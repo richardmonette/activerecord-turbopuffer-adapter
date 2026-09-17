@@ -29,6 +29,7 @@ module ActiveRecord
           m.register_type "uuid",     Type::String.new
           m.register_type "int",      Type::Integer.new(limit: 8)
           m.register_type "uint",     ::Turbopuffer::ActiveRecord::Type::UnsignedInteger.new(limit: 8)
+          m.register_type "float",    Type::Float.new
           m.register_type "bool",     Type::Boolean.new
           m.register_type "datetime", ::Turbopuffer::ActiveRecord::Type::DateTime.new
           m.register_type(%r{\A\[\].+\z}) do |type|

@@ -8,6 +8,8 @@ class TurbopufferTypeMapTest < ActiveSupport::TestCase
     turbopuffer_attribute "title", "string"
     turbopuffer_attribute "views", "int"
     turbopuffer_attribute "bytes", "uint"
+    turbopuffer_attribute "score", "float"
+    turbopuffer_attribute "ratings", "[]float"
     turbopuffer_attribute "published", "bool"
     turbopuffer_attribute "created_at", "datetime"
     turbopuffer_attribute "tags", "[]string"
@@ -38,6 +40,14 @@ class TurbopufferTypeMapTest < ActiveSupport::TestCase
     assert_raises(ActiveModel::RangeError) do
       Typed.type_for_attribute("bytes").serialize(-1)
     end
+  end
+
+  test "float casts form params" do
+    assert_equal 1.5, Typed.new(score: "1.5").score
+  end
+
+  test "float arrays cast each element" do
+    assert_equal [ 1.5, 2.0 ], Typed.type_for_attribute("ratings").serialize([ "1.5", 2 ])
   end
 
   test "string arrays cast each element" do
