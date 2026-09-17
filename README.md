@@ -1,5 +1,7 @@
 # activerecord-turbopuffer-adapter
 
+[![CI](https://github.com/richardmonette/activerecord-turbopuffer-adapter/actions/workflows/ci.yml/badge.svg)](https://github.com/richardmonette/activerecord-turbopuffer-adapter/actions/workflows/ci.yml)
+
 activerecord-turbopuffer-adapter is an unofficial, fan made Ruby on Rails ActiveRecord database adapter for turbopuffer. If you are looking for the official turbopuffer Ruby gem see: https://github.com/turbopuffer/turbopuffer-ruby
 
 The purpose of this gem is to provide Rails developers a familiar ActiveRecord style interface to turbopuffer.
