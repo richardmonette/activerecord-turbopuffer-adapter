@@ -5,8 +5,10 @@ require_relative "lib/turbopuffer/active_record/version"
 Gem::Specification.new do |s|
   s.name = "activerecord-turbopuffer-adapter"
   s.version = Turbopuffer::ActiveRecord::VERSION
-  s.summary = "Active Record adapter for turbopuffer"
-  s.description = "Interact with turbopuffer through a native feeling Active Record database adapter"
+  s.summary = "Unofficial Active Record database adapter for turbopuffer"
+  s.description = "An unofficial, community-maintained Active Record adapter for turbopuffer: vector and " \
+                  "full-text ranking, filters, batch writes and aggregates through the familiar ActiveRecord " \
+                  "interface. Not affiliated with turbopuffer."
   s.authors = ["Richard Monette"]
   s.email = "richard.monette@gmail.com"
   s.homepage = "https://github.com/richardmonette/activerecord-turbopuffer-adapter"

@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.1
+
+- Gem summary and description state that the adapter is unofficial
+
 ## 0.1.0
 
 Initial release.
