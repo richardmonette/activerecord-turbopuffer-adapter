@@ -23,6 +23,7 @@ class Doc < IntegrationRecord
   turbopuffer_attribute "published", "bool"
   turbopuffer_attribute "created_at", "datetime"
   turbopuffer_attribute "tags", "[]string"
+  turbopuffer_attribute "scores", "[]int"
   turbopuffer_attribute "embedding", "[2]f32", ann: true
 end
 

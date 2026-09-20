@@ -59,8 +59,12 @@ module Arel::Visitors
       case filters.size
       when 0 then nil
       when 1 then filters.first
-      else [ "And", filters ]
+      else conjunction(filters)
       end
+    end
+
+    def conjunction(filters)
+      [ "And", filters.flat_map { |filter| (filter in [ "And", children ]) ? children : [ filter ] } ]
     end
 
     def aggregate_node(projection)
@@ -182,7 +186,7 @@ module Arel::Visitors
     def visit_Arel_Table(o) = o.name
 
     # filters
-    def visit_Arel_Nodes_And(o)      = [ "And", o.children.map { |c| visit(c) } ]
+    def visit_Arel_Nodes_And(o)      = conjunction(o.children.map { |c| visit(c) })
     def visit_Arel_Nodes_Or(o)       = [ "Or", [ visit(o.left), visit(o.right) ] ]
     def visit_Arel_Nodes_Grouping(o) = visit(o.expr)
 
@@ -200,10 +204,18 @@ module Arel::Visitors
       "Lt" => "AnyLt", "Lte" => "AnyLte", "Gt" => "AnyGt", "Gte" => "AnyGte"
     }.freeze
 
-    def comparison(node, operator, value = visit(node.right))
-      operator = ARRAY_OPERATORS.fetch(operator) if array_attribute?(node.left) && !value.nil?
+    MATCHES_MISSING = [ "Lt", "Lte" ].freeze
 
-      [ visit(node.left), operator, value ]
+    def comparison(node, operator, value = visit(node.right))
+      attribute = visit(node.left)
+      operator = ARRAY_OPERATORS.fetch(operator) if array_attribute?(node.left) && !value.nil?
+      filter = [ attribute, operator, value ]
+
+      if MATCHES_MISSING.include?(operator) && !value.nil?
+        [ "And", [ filter, [ attribute, "NotEq", nil ] ] ]
+      else
+        filter
+      end
     end
 
     def array_attribute?(node)
@@ -227,7 +239,7 @@ module Arel::Visitors
     def visit_Arel_Nodes_Between(o)
       low, high = o.right.children.map { |bound| visit(bound) }
 
-      [ "And", [ comparison(o, "Gte", low), comparison(o, "Lte", high) ] ]
+      conjunction([ comparison(o, "Gte", low), comparison(o, "Lte", high) ])
     end
 
     def visit_Arel_Nodes_Not(o) = [ "Not", visit(o.expr) ]

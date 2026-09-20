@@ -58,12 +58,16 @@ class AdapterIntegrationTest < IntegrationTest
     assert_equal [ "Walrus" ], Doc.where.not(tags: nil).pluck(:title)
   end
 
-  test "Lt and Lte match documents missing the attribute" do
-    walrus
-    narwhal(views: nil)
+  test "comparisons never match documents missing the attribute" do
+    walrus(scores: [ 10 ])
+    narwhal(views: nil, scores: nil)
 
-    assert_equal [ "Narwhal" ], Doc.where(views: ..5).pluck(:title)
+    assert_equal [], Doc.where(views: ..5).pluck(:title)
+    assert_equal [], Doc.where(views: ...5).pluck(:title)
     assert_equal [ "Walrus" ], Doc.where(views: 6..).pluck(:title)
+    assert_equal [ "Walrus" ], Doc.where(views: 1..20).pluck(:title)
+    assert_equal [], Doc.where(scores: ..5).pluck(:title)
+    assert_equal [ "Walrus" ], Doc.where(scores: 5..).pluck(:title)
   end
 
   test "glob, case-insensitive glob and regexp" do

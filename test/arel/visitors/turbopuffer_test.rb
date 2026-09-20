@@ -234,7 +234,8 @@ class TurbopufferVisitorTest < ActiveSupport::TestCase
 
     assert_equal [ "And", [
       [ "created_at", "Gte", "2015-01-20T00:00:00Z" ],
-      [ "created_at", "Lte", "2015-01-21T00:00:00Z" ]
+      [ "created_at", "Lte", "2015-01-21T00:00:00Z" ],
+      [ "created_at", "NotEq", nil ]
     ] ], query.filters
   end
 
@@ -243,14 +244,18 @@ class TurbopufferVisitorTest < ActiveSupport::TestCase
 
     assert_equal [ "And", [
       [ "created_at", "Gte", "2015-01-20T00:00:00Z" ],
-      [ "created_at", "Lt", "2015-01-21T00:00:00Z" ]
+      [ "created_at", "Lt", "2015-01-21T00:00:00Z" ],
+      [ "created_at", "NotEq", nil ]
     ] ], query.filters
   end
 
-  test "a beginless range becomes a single upper bound" do
+  test "an upper bound excludes documents missing the attribute" do
     query, _binds = compile(Blog.where(created_at: ..Time.utc(2015, 1, 21)))
 
-    assert_equal [ "created_at", "Lte", "2015-01-21T00:00:00Z" ], query.filters
+    assert_equal [ "And", [
+      [ "created_at", "Lte", "2015-01-21T00:00:00Z" ],
+      [ "created_at", "NotEq", nil ]
+    ] ], query.filters
   end
 
   test "an endless range becomes a single lower bound" do
@@ -264,7 +269,8 @@ class TurbopufferVisitorTest < ActiveSupport::TestCase
 
     assert_equal [ "Not", [ "And", [
       [ "created_at", "Gte", "2015-01-20T00:00:00Z" ],
-      [ "created_at", "Lte", "2015-01-21T00:00:00Z" ]
+      [ "created_at", "Lte", "2015-01-21T00:00:00Z" ],
+      [ "created_at", "NotEq", nil ]
     ] ] ], query.filters
   end
 
@@ -359,8 +365,8 @@ class TurbopufferVisitorTest < ActiveSupport::TestCase
     query, _binds = compile(Blog.where(created_at: [ range, other ]))
 
     assert_equal [ "Or", [
-      [ "And", [ [ "created_at", "Gte", "2015-01-20T00:00:00Z" ], [ "created_at", "Lte", "2015-01-21T00:00:00Z" ] ] ],
-      [ "And", [ [ "created_at", "Gte", "2015-02-20T00:00:00Z" ], [ "created_at", "Lte", "2015-02-21T00:00:00Z" ] ] ]
+      [ "And", [ [ "created_at", "Gte", "2015-01-20T00:00:00Z" ], [ "created_at", "Lte", "2015-01-21T00:00:00Z" ], [ "created_at", "NotEq", nil ] ] ],
+      [ "And", [ [ "created_at", "Gte", "2015-02-20T00:00:00Z" ], [ "created_at", "Lte", "2015-02-21T00:00:00Z" ], [ "created_at", "NotEq", nil ] ] ]
     ] ], query.filters
   end
 
@@ -379,7 +385,8 @@ class TurbopufferVisitorTest < ActiveSupport::TestCase
 
     assert_equal [ "And", [
       [ "created_at", "Gte", "2015-01-20T00:00:00Z" ],
-      [ "created_at", "Lte", "2015-01-21T00:00:00Z" ]
+      [ "created_at", "Lte", "2015-01-21T00:00:00Z" ],
+      [ "created_at", "NotEq", nil ]
     ] ], query.filters
   end
 

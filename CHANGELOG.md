@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.2
+
+- Less-than and range filters no longer match documents that are missing the attribute, matching SQL semantics (turbopuffer's `Lt` / `Lte` match missing attributes by default)
+
 ## 0.1.1
 
 - Gem summary and description state that the adapter is unofficial
