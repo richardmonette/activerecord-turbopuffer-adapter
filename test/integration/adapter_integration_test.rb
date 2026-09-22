@@ -172,6 +172,14 @@ class AdapterIntegrationTest < IntegrationTest
     assert_equal 0, Scratch.delete_all
   end
 
+  test "consistency levels are accepted by turbopuffer" do
+    walrus
+
+    assert_equal [ "Walrus" ], Doc.consistency(:strong).where(title: "Walrus").pluck(:title)
+    assert_equal 1, Doc.consistency(:strong).count
+    assert_includes [ 0, 1 ], Doc.consistency(:eventual).count
+  end
+
   test "rank_by ANN orders by vector distance" do
     walrus
     narwhal

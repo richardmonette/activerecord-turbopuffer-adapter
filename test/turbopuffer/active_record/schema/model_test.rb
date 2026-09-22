@@ -107,6 +107,39 @@ class Turbopuffer::ActiveRecord::Schema::ModelTest < ActiveSupport::TestCase
     assert_equal "euclidean_squared", child.turbopuffer_distance_metric
   end
 
+  test "the consistency is unset by default" do
+    model = build_model("DefaultConsistency") { turbopuffer_attribute "id", "string" }
+
+    assert_nil model.turbopuffer_consistency
+  end
+
+  test "the consistency can be set for the model" do
+    model = build_model("EventualModel") do
+      turbopuffer_consistency "eventual"
+
+      turbopuffer_attribute "id", "string"
+    end
+
+    assert_equal "eventual", model.turbopuffer_consistency
+  end
+
+  test "a subclass inherits the consistency" do
+    parent = build_model("ConsistencyParent") do
+      turbopuffer_consistency :eventual
+
+      turbopuffer_attribute "id", "string"
+    end
+    child = build_model("ConsistencyChild", parent:)
+
+    assert_equal "eventual", child.turbopuffer_consistency
+  end
+
+  test "an unknown consistency raises" do
+    assert_raises(ArgumentError) do
+      build_model("BadConsistency") { turbopuffer_consistency "sometimes" }
+    end
+  end
+
   test "an unknown distance metric raises" do
     assert_raises(ArgumentError) do
       build_model("BadMetric") { turbopuffer_distance_metric "manhattan" }

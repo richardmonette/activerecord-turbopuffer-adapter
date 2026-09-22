@@ -10,7 +10,8 @@ module Arel::Visitors
         rank_by: @rank_by,
         include_attributes: @include_attributes,
         aggregate_by: @aggregate_by,
-        upsert_rows: @upsert_rows
+        upsert_rows: @upsert_rows,
+        consistency: @consistency
       }
     end
     def to_s = JSON.generate(to_h)
@@ -19,10 +20,11 @@ module Arel::Visitors
     def eql?(other) = other.is_a?(self.class) && to_h == other.to_h
     alias == eql?
 
-    attr_reader :op, :namespace, :filters, :top_k, :rank_by, :include_attributes, :upsert_rows, :aggregate_by, :group_by
+    attr_reader :op, :namespace, :filters, :top_k, :rank_by, :include_attributes, :upsert_rows, :aggregate_by, :group_by,
+                :consistency
 
-    def initialize(op:, namespace:, filters: nil, top_k: nil, rank_by: nil,
-                   include_attributes: nil, upsert_rows: nil, aggregate_by: nil, group_by: nil)
+    def initialize(op:, namespace:, filters: nil, top_k: nil, rank_by: nil, include_attributes: nil,
+                   upsert_rows: nil, aggregate_by: nil, group_by: nil, consistency: nil)
       @op = op
       @namespace = namespace
       @filters = filters
@@ -32,6 +34,7 @@ module Arel::Visitors
       @aggregate_by = aggregate_by
       @group_by = group_by
       @upsert_rows = upsert_rows
+      @consistency = consistency
     end
   end
 
@@ -120,8 +123,16 @@ module Arel::Visitors
         rank_by:            o.orders.map { |ord| visit(ord) },
         include_attributes: attributes.flat_map { |p| visit(p) },
         group_by:           core.groups.map { |g| visit(g) },
-        aggregate_by:       aggregate && visit(aggregate)
+        aggregate_by:       aggregate && visit(aggregate),
+        consistency:        consistency_hint(core.optimizer_hints)
       )
+    end
+
+    def consistency_hint(hints)
+      return unless hints
+
+      hint = hints.expr.reverse.find { |h| h.start_with?("consistency=") }
+      hint&.delete_prefix("consistency=")
     end
 
     def visit_Arel_Nodes_InsertStatement(o)

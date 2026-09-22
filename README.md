@@ -105,6 +105,8 @@ Document.find("018f...")
 Document.rank_by("vector", "ANN", query_vector).limit(10)
 Document.rank_by("text", "BM25", "quick walrus").limit(10)
 
+Document.consistency(:eventual).where(published: true)
+
 Document
   .where(published: true)
   .rank_by(["Sum", [
@@ -115,6 +117,8 @@ Document
 ```
 
 > Note that turbopuffer has a limit on the maximum number of documents returned (https://turbopuffer.com/docs/query#param-limit), so Document.all.to_a etc. will only return at most 10,000 items
+
+> Eventual reads are cheaper but may not include writes from the last few seconds. Set a default with `turbopuffer_consistency "eventual"` in a model or `consistency: eventual` in `database.yml`. Strong is the default.
 
 ### Using alongside Postgres
 

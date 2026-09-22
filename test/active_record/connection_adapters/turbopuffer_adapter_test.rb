@@ -11,13 +11,48 @@ class TurbopufferAdapterTest < ActiveSupport::TestCase
     turbopuffer_attribute "embedding", "[2]f32", ann: true
   end
 
+  class Eventual < TestRecord
+    self.table_name = "eventuals"
+
+    turbopuffer_consistency "eventual"
+
+    turbopuffer_attribute "id", "string"
+    turbopuffer_attribute "title", "string"
+  end
+
+  class ConfiguredRecord < TestRecord
+    self.abstract_class = true
+
+    establish_connection(adapter: "turbopuffer", consistency: "eventual")
+  end
+
+  class Configured < ConfiguredRecord
+    self.table_name = "configured"
+
+    turbopuffer_attribute "id", "string"
+    turbopuffer_attribute "title", "string"
+  end
+
+  class MisconfiguredRecord < TestRecord
+    self.abstract_class = true
+
+    establish_connection(adapter: "turbopuffer", consistency: "sometimes")
+  end
+
+  class Misconfigured < MisconfiguredRecord
+    self.table_name = "misconfigured"
+
+    turbopuffer_attribute "id", "string"
+    turbopuffer_attribute "title", "string"
+  end
+
   UUID = /\A\h{8}-\h{4}-\h{4}-\h{4}-\h{12}\z/
 
   FakeWriteResult = Struct.new(:rows_affected, :rows_remaining)
-  FakeQueryResult = Struct.new(:aggregations)
+  FakeQueryResult = Struct.new(:aggregations, :rows)
 
   class FakeNamespace
-    attr_reader :writes, :deleted
+    attr_reader :writes, :deleted, :last_query
 
     def initialize(results = [ FakeWriteResult.new(1, false) ], count: 0)
       @results = results
@@ -32,7 +67,8 @@ class TurbopufferAdapterTest < ActiveSupport::TestCase
     end
 
     def query(args)
-      FakeQueryResult.new({ count: @count })
+      @last_query = args
+      FakeQueryResult.new({ count: @count }, [])
     end
 
     def delete_all
@@ -187,6 +223,58 @@ class TurbopufferAdapterTest < ActiveSupport::TestCase
     assert_raises(ActiveRecord::StatementInvalid) do
       run_update(nil, { "published" => true }, namespace)
     end
+  end
+
+  test "a select passes the consistency level" do
+    query = Arel::Visitors::TurbopufferQuery.new(op: :select, namespace: "items", include_attributes: [ "title" ], consistency: "eventual")
+    namespace = FakeNamespace.new
+
+    Item.with_connection { |connection| connection.turbopuffer_select(namespace, query) }
+
+    assert_equal({ level: :eventual }, namespace.last_query[:consistency])
+  end
+
+  test "an aggregate passes the consistency level" do
+    query = Arel::Visitors::TurbopufferQuery.new(op: :select, namespace: "items", aggregate_by: [ "count_all", [ "Count" ] ], group_by: [], consistency: "strong")
+    namespace = FakeNamespace.new
+
+    Item.with_connection { |connection| connection.turbopuffer_aggregate(namespace, query) }
+
+    assert_equal({ level: :strong }, namespace.last_query[:consistency])
+  end
+
+  test "a select without a consistency level sends none" do
+    query = Arel::Visitors::TurbopufferQuery.new(op: :select, namespace: "items", include_attributes: [ "title" ])
+    namespace = FakeNamespace.new
+
+    Item.with_connection { |connection| connection.turbopuffer_select(namespace, query) }
+
+    assert_not namespace.last_query.key?(:consistency)
+  end
+
+  def select_consistency(model, **query_options)
+    query = Arel::Visitors::TurbopufferQuery.new(op: :select, namespace: model.table_name, include_attributes: [ "title" ], **query_options)
+    namespace = FakeNamespace.new
+
+    model.with_connection { |connection| connection.turbopuffer_select(namespace, query) }
+
+    namespace.last_query[:consistency]
+  end
+
+  test "the model's consistency applies when the query has none" do
+    assert_equal({ level: :eventual }, select_consistency(Eventual))
+  end
+
+  test "the query's consistency overrides the model's" do
+    assert_equal({ level: :strong }, select_consistency(Eventual, consistency: "strong"))
+  end
+
+  test "the connection's consistency applies when the model has none" do
+    assert_equal({ level: :eventual }, select_consistency(Configured))
+  end
+
+  test "an invalid connection consistency raises on use" do
+    assert_raises(ArgumentError) { select_consistency(Misconfigured) }
   end
 
   class MissingNamespace

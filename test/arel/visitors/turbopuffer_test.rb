@@ -316,6 +316,29 @@ class TurbopufferVisitorTest < ActiveSupport::TestCase
     assert_equal [ "And", [ [ "scores", "AnyGte", 1 ], [ "scores", "AnyLte", 5 ] ] ], query.filters
   end
 
+  test "consistency becomes a query option" do
+    query, _binds = compile(Blog.consistency(:eventual).where(title: "walrus"))
+
+    assert_equal "eventual", query.consistency
+    assert_equal [ "title", "Eq", "walrus" ], query.filters
+  end
+
+  test "consistency is unset by default" do
+    query, _binds = compile(Blog.where(title: "walrus"))
+
+    assert_nil query.consistency
+  end
+
+  test "the last consistency call wins" do
+    query, _binds = compile(Blog.consistency(:strong).consistency(:eventual))
+
+    assert_equal "eventual", query.consistency
+  end
+
+  test "an unknown consistency level raises" do
+    assert_raises(ArgumentError) { Blog.consistency(:bogus) }
+  end
+
   test "a regexp becomes a Regex filter" do
     query, _binds = compile(Blog.where(title: /^walrus/))
 

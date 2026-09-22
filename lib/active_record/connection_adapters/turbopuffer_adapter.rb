@@ -225,6 +225,14 @@ module ActiveRecord
         0
       end
 
+      def consistency_for(query)
+        model = ::Turbopuffer::ActiveRecord::Schema::Model.for_table(query.namespace)
+        level = query.consistency || model.turbopuffer_consistency || @config[:consistency]
+        return if level.nil?
+
+        { level: ::Turbopuffer::ActiveRecord::Schema::Model.validate_consistency(level).to_sym }
+      end
+
       def turbopuffer_aggregate(namespace, query)
         aggregate_alias, aggregate = query.aggregate_by
 
@@ -233,6 +241,8 @@ module ActiveRecord
         }
 
         tpuf_query_args[:filters] = query.filters if query.filters
+        consistency = consistency_for(query)
+        tpuf_query_args[:consistency] = consistency if consistency
 
         if query.group_by.present?
           tpuf_query_args[:group_by] = query.group_by
@@ -269,6 +279,8 @@ module ActiveRecord
 
         tpuf_query_args[:rank_by] = query.rank_by.first if query.rank_by.present?
         tpuf_query_args[:filters] = query.filters if query.filters
+        consistency = consistency_for(query)
+        tpuf_query_args[:consistency] = consistency if consistency
 
         tpuf_result = namespace.query(tpuf_query_args)
 

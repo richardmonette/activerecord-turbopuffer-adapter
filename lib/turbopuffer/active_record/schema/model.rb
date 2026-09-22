@@ -5,10 +5,12 @@ module Turbopuffer
         extend ActiveSupport::Concern
 
         DISTANCE_METRICS = [ "cosine_distance", "euclidean_squared" ].freeze
+        CONSISTENCY_LEVELS = [ "strong", "eventual" ].freeze
 
         included do
           class_attribute :turbopuffer_attributes,        instance_accessor: false, default: [].freeze
           class_attribute :_turbopuffer_distance_metric,  instance_accessor: false, default: "cosine_distance"
+          class_attribute :_turbopuffer_consistency,      instance_accessor: false, default: nil
         end
 
         class << self
@@ -32,6 +34,17 @@ module Turbopuffer
 
             model
           end
+
+          def validate_consistency(level)
+            level = level.to_s
+
+            unless CONSISTENCY_LEVELS.include?(level)
+              raise ArgumentError,
+                "consistency must be one of #{CONSISTENCY_LEVELS.join(", ")}, got #{level.inspect}"
+            end
+
+            level
+          end
         end
 
         class_methods do
@@ -50,6 +63,8 @@ module Turbopuffer
           def turbopuffer_distance_metric(value = nil)
             return _turbopuffer_distance_metric if value.nil?
 
+            value = value.to_s
+
             unless DISTANCE_METRICS.include?(value)
               raise ArgumentError,
                 "distance metric must be one of #{DISTANCE_METRICS.join(", ")}, got #{value.inspect}"
@@ -65,6 +80,16 @@ module Turbopuffer
 
           def glob(pattern, case_sensitive: true)
             ::Turbopuffer::ActiveRecord::Glob.new(pattern, case_sensitive:)
+          end
+
+          def consistency(level)
+            optimizer_hints("consistency=#{Model.validate_consistency(level)}")
+          end
+
+          def turbopuffer_consistency(value = nil)
+            return _turbopuffer_consistency if value.nil?
+
+            self._turbopuffer_consistency = Model.validate_consistency(value)
           end
 
           def predicate_builder

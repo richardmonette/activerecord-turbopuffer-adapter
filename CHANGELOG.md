@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.3
+
+- Consistency control: `Document.consistency(:eventual)` per query, `turbopuffer_consistency "eventual"` per model, or `consistency: eventual` in `database.yml`; query overrides model overrides connection, and turbopuffer's default (`strong`) applies when none is set
+
 ## 0.1.2
 
 - Less-than and range filters no longer match documents that are missing the attribute, matching SQL semantics (turbopuffer's `Lt` / `Lte` match missing attributes by default)
