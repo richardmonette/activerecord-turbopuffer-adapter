@@ -34,6 +34,24 @@ class Scratch < IntegrationRecord
   turbopuffer_attribute "title", "string"
 end
 
+class UnauthorizedRecord < IntegrationRecord
+  self.abstract_class = true
+
+  establish_connection(
+    adapter: "turbopuffer",
+    region: ENV.fetch("TURBOPUFFER_REGION", "gcp-us-central1"),
+    api_key: "tpuf_not_a_real_key",
+    namespace_prefix: "activerecord-turbopuffer-adapter-test-unauthorized"
+  )
+end
+
+class Unauthorized < UnauthorizedRecord
+  self.table_name = "unauthorized"
+
+  turbopuffer_attribute "id", "uuid"
+  turbopuffer_attribute "title", "string"
+end
+
 class IntegrationTest < ActiveSupport::TestCase
   setup do
     skip "TURBOPUFFER_API_KEY is not set" unless ENV["TURBOPUFFER_API_KEY"]

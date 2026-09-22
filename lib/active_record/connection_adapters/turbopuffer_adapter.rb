@@ -363,6 +363,19 @@ module ActiveRecord
       def reconnect
         connect
       end
+
+      def translate_exception(exception, message:, sql:, binds:)
+        case exception
+        when Turbopuffer::Errors::APITimeoutError
+          ActiveRecord::StatementTimeout.new(message, sql: sql, binds: binds, connection_pool: @pool)
+        when Turbopuffer::Errors::APIConnectionError
+          ActiveRecord::ConnectionFailed.new(message, sql: sql, binds: binds, connection_pool: @pool)
+        when Turbopuffer::Errors::AuthenticationError, Turbopuffer::Errors::PermissionDeniedError
+          ActiveRecord::DatabaseConnectionError.new(message)
+        else
+          super
+        end
+      end
     end
   end
 end

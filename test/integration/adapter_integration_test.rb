@@ -180,6 +180,18 @@ class AdapterIntegrationTest < IntegrationTest
     assert_includes [ 0, 1 ], Doc.consistency(:eventual).count
   end
 
+  test "an invalid api key raises DatabaseConnectionError" do
+    assert_raises(ActiveRecord::DatabaseConnectionError) { Unauthorized.count }
+  end
+
+  test "a query turbopuffer rejects raises StatementInvalid with the API error as its cause" do
+    walrus
+
+    error = assert_raises(ActiveRecord::StatementInvalid) { Doc.where(body: /walrus/).to_a }
+
+    assert_kind_of Turbopuffer::Errors::BadRequestError, error.cause
+  end
+
   test "rank_by ANN orders by vector distance" do
     walrus
     narwhal

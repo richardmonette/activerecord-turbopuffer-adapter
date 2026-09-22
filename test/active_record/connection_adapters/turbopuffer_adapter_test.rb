@@ -290,6 +290,43 @@ class TurbopufferAdapterTest < ActiveSupport::TestCase
     assert_empty result.rows
   end
 
+  def translate(error)
+    Item.with_connection { |connection| connection.send(:translate_exception_class, error, nil, nil) }
+  end
+
+  def status_error(klass, status)
+    klass.new(url: "https://example.turbopuffer.com", status: status, headers: {}, body: nil, request: nil, response: nil)
+  end
+
+  test "a timeout becomes StatementTimeout" do
+    error = translate(Turbopuffer::Errors::APITimeoutError.new(url: "https://example.turbopuffer.com"))
+
+    assert_kind_of ActiveRecord::StatementTimeout, error
+  end
+
+  test "a connection error becomes ConnectionFailed" do
+    error = translate(Turbopuffer::Errors::APIConnectionError.new(url: "https://example.turbopuffer.com"))
+
+    assert_kind_of ActiveRecord::ConnectionFailed, error
+  end
+
+  test "authentication and permission errors become DatabaseConnectionError" do
+    [ Turbopuffer::Errors::AuthenticationError, Turbopuffer::Errors::PermissionDeniedError ].each do |klass|
+      error = translate(status_error(klass, 401))
+
+      assert_kind_of ActiveRecord::DatabaseConnectionError, error
+    end
+  end
+
+  test "other API errors become StatementInvalid" do
+    [ Turbopuffer::Errors::BadRequestError, Turbopuffer::Errors::RateLimitError, Turbopuffer::Errors::InternalServerError ].each do |klass|
+      error = translate(status_error(klass, 400))
+
+      assert_instance_of ActiveRecord::StatementInvalid, error
+      assert_match klass.name, error.message
+    end
+  end
+
   test "the adapter reports upsert support" do
     Item.with_connection do |connection|
       assert connection.supports_insert_on_duplicate_skip?

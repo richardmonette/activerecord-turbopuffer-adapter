@@ -120,6 +120,24 @@ Document
 
 > Eventual reads are cheaper but may not include writes from the last few seconds. Set a default with `turbopuffer_consistency "eventual"` in a model or `consistency: eventual` in `database.yml`. Strong is the default.
 
+### Errors
+
+Turbopuffer errors are raised as the ActiveRecord exceptions a Rails app already handles.
+
+```ruby
+begin
+  Document.where(published: true).to_a
+rescue ActiveRecord::ConnectionFailed
+  # turbopuffer is unreachable
+rescue ActiveRecord::StatementTimeout
+  # the request timed out
+rescue ActiveRecord::DatabaseConnectionError
+  # the API key is invalid
+rescue ActiveRecord::StatementInvalid => e
+  e.cause # => the underlying Turbopuffer::Errors::APIError, e.g. a bad request or rate limit
+end
+```
+
 ### Using alongside Postgres
 
 While something of a lark, aspirationally the idea of this gem is to make turbopuffer conveniently usable as the primary db in a Rails app. In practice, however, using turbopuffer alongside a traditional primary db (such as postgres) is a supported, potentially more practical solution.

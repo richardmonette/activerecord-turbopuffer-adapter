@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.4
+
+- Turbopuffer errors are raised as ActiveRecord exceptions: `ConnectionFailed` and `StatementTimeout` for connection problems, `DatabaseConnectionError` for an invalid API key, and `StatementInvalid` (with the API error as `cause`) for everything else
+
 ## 0.1.3
 
 - Consistency control: `Document.consistency(:eventual)` per query, `turbopuffer_consistency "eventual"` per model, or `consistency: eventual` in `database.yml`; query overrides model overrides connection, and turbopuffer's default (`strong`) applies when none is set
