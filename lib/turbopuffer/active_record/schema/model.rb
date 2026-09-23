@@ -115,6 +115,7 @@ module Turbopuffer
               attrs[:ann] = true if attribute.ann
               attrs[:glob] = true if attribute.glob
               attrs[:regex] = true if attribute.regex
+              attrs[:sparse_knn] = { distance_metric: "dot_product" } if attribute.type == "{}f16"
 
               schema[attribute.name] = attrs
             end

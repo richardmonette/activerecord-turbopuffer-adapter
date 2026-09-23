@@ -192,6 +192,17 @@ class AdapterIntegrationTest < IntegrationTest
     assert_kind_of Turbopuffer::Errors::BadRequestError, error.cause
   end
 
+  test "bytes, integer vectors and sparse vectors round-trip" do
+    raw = "hi\x00there".b
+    created = Exotic.create!(payload: raw, quantized: [ 1, -2 ], terms: { "walrus" => 0.5, "tusk" => 1.0 })
+
+    found = Exotic.find(created.id)
+
+    assert_equal raw, found.payload
+    assert_equal [ 1, -2 ], found.quantized
+    assert_equal({ "walrus" => 0.5, "tusk" => 1.0 }, found.terms)
+  end
+
   test "rank_by ANN orders by vector distance" do
     walrus
     narwhal

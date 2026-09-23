@@ -15,6 +15,9 @@ class TurbopufferTypeMapTest < ActiveSupport::TestCase
     turbopuffer_attribute "tags", "[]string"
     turbopuffer_attribute "seen_at", "[]datetime"
     turbopuffer_attribute "embedding", "[2]f32"
+    turbopuffer_attribute "payload", "bytes"
+    turbopuffer_attribute "quantized", "[2]i8"
+    turbopuffer_attribute "terms", "{}f16"
   end
 
   test "bool casts form params" do
@@ -78,6 +81,40 @@ class TurbopufferTypeMapTest < ActiveSupport::TestCase
   test "a vector with the wrong dimensions raises" do
     assert_raises(ArgumentError) do
       Typed.new(embedding: [ 0.1 ]).embedding
+    end
+  end
+
+  test "bytes serialize as base64 and deserialize back to binary" do
+    type = Typed.type_for_attribute("payload")
+    raw = "hi\x00there".b
+
+    assert_equal "aGkAdGhlcmU=", type.serialize(raw)
+    assert_equal raw, type.deserialize("aGkAdGhlcmU=")
+  end
+
+  test "integer vectors cast components to integers" do
+    assert_equal [ 1, -2 ], Typed.new(quantized: [ "1", -2.0 ]).quantized
+  end
+
+  test "integer vectors reject fractional components" do
+    assert_raises(ArgumentError) { Typed.new(quantized: [ 1.5, 2 ]).quantized }
+  end
+
+  test "sparse vectors serialize with string keys and float weights" do
+    assert_equal({ "a" => 0.5, "b" => 1.0 }, Typed.type_for_attribute("terms").serialize({ a: "0.5", "b" => 1 }))
+  end
+
+  test "sparse vectors deserialize with string keys" do
+    assert_equal({ "a" => 0.5 }, Typed.type_for_attribute("terms").deserialize({ a: 0.5 }))
+  end
+
+  test "a sparse vector attribute declares sparse_knn in the schema" do
+    assert_equal({ type: "{}f16", sparse_knn: { distance_metric: "dot_product" } }, Typed.turbopuffer_schema_hash["terms"])
+  end
+
+  test "gated and unsupported type strings raise at declaration" do
+    [ "[][2]f32", "[]bytes", "[2]f64" ].each do |type|
+      assert_raises(ArgumentError) { Class.new(TestRecord) { turbopuffer_attribute "x", type } }
     end
   end
 

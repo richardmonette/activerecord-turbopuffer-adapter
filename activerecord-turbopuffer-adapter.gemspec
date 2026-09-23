@@ -26,6 +26,7 @@ Gem::Specification.new do |s|
   s.extra_rdoc_files = ["README.md"]
 
   s.add_dependency "activerecord", "~> 8.1"
+  s.add_dependency "base64"
   s.add_dependency "railties", "~> 8.1"
   s.add_dependency "turbopuffer", ">= 2.4", "< 3"
 end

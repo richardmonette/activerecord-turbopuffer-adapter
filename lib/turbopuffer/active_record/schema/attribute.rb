@@ -2,7 +2,7 @@ module Turbopuffer
   module ActiveRecord
     module Schema
       class Attribute
-        TYPES = %r{\A(?:\[\])?(?:string|uuid|int|uint|float|bool|datetime)\z|\A\[\d+\]f(?:16|32)\z}
+        TYPES = %r{\A(?:\[\])?(?:string|uuid|int|uint|float|bool|datetime)\z|\Abytes\z|\A\[\d+\](?:f16|f32|i8)\z|\A\{\}f16\z}
 
         attr_reader :name, :type, :filterable, :full_text_search, :ann, :glob, :regex, :notnull
 

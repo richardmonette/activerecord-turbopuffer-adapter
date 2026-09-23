@@ -27,6 +27,15 @@ class Doc < IntegrationRecord
   turbopuffer_attribute "embedding", "[2]f32", ann: true
 end
 
+class Exotic < IntegrationRecord
+  self.table_name = "exotics"
+
+  turbopuffer_attribute "id", "uuid"
+  turbopuffer_attribute "payload", "bytes"
+  turbopuffer_attribute "quantized", "[2]i8", ann: true
+  turbopuffer_attribute "terms", "{}f16"
+end
+
 class Scratch < IntegrationRecord
   self.table_name = "scratch"
 
@@ -66,5 +75,6 @@ Minitest.after_run do
   if ENV["TURBOPUFFER_API_KEY"]
     Doc.delete_all
     Scratch.delete_all
+    Exotic.delete_all
   end
 end

@@ -32,11 +32,16 @@ module ActiveRecord
           m.register_type "float",    Type::Float.new
           m.register_type "bool",     Type::Boolean.new
           m.register_type "datetime", ::Turbopuffer::ActiveRecord::Type::DateTime.new
+          m.register_type "bytes",    ::Turbopuffer::ActiveRecord::Type::Bytes.new
+          m.register_type "{}f16",    ::Turbopuffer::ActiveRecord::Type::SparseVector.new
           m.register_type(%r{\A\[\].+\z}) do |type|
             ::Turbopuffer::ActiveRecord::Type::Array.new(m.lookup(type.delete_prefix("[]")))
           end
           m.register_type(%r{\A\[\d+\]f(?:16|32)\z}) do |type|
             ::Turbopuffer::ActiveRecord::Type::Vector.new(type[/\d+/].to_i)
+          end
+          m.register_type(%r{\A\[\d+\]i8\z}) do |type|
+            ::Turbopuffer::ActiveRecord::Type::Vector.new(type[/\d+/].to_i, integer: true)
           end
         end
       end
@@ -96,7 +101,7 @@ module ActiveRecord
 
       def type_cast(value)
         case value
-        when Array
+        when Array, Hash
           value
         else
           super

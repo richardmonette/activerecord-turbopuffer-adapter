@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.5
+
+- `bytes` attributes (base64 on the wire, binary strings in Ruby), `[N]i8` integer vectors, and `{}f16` sparse vectors (declared with `sparse_knn` automatically)
+
 ## 0.1.4
 
 - Turbopuffer errors are raised as ActiveRecord exceptions: `ConnectionFailed` and `StatementTimeout` for connection problems, `DatabaseConnectionError` for an invalid API key, and `StatementInvalid` (with the API error as `cause`) for everything else
