@@ -272,7 +272,7 @@ module ActiveRecord
 
       def turbopuffer_select(namespace, query)
         fields = if query.include_attributes == [ "*" ]
-          column_definitions(query.namespace).map(&:name)
+          column_definitions(query.namespace).reject(&:vector?).map(&:name)
         else
           query.include_attributes
         end

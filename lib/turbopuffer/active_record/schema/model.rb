@@ -78,6 +78,10 @@ module Turbopuffer
             order(::Arel::Nodes::RankByNode.new(expression))
           end
 
+          def with_vectors
+            select(*turbopuffer_attributes.map(&:name))
+          end
+
           def glob(pattern, case_sensitive: true)
             ::Turbopuffer::ActiveRecord::Glob.new(pattern, case_sensitive:)
           end

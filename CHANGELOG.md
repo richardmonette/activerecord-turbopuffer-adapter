@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.6
+
+- Vector attributes are no longer loaded by default; `Document.with_vectors` (or an explicit `select` / `pluck`) fetches them. Reading an unloaded vector raises `ActiveModel::MissingAttributeError`
+
 ## 0.1.5
 
 - `bytes` attributes (base64 on the wire, binary strings in Ruby), `[N]i8` integer vectors, and `{}f16` sparse vectors (declared with `sparse_knn` automatically)

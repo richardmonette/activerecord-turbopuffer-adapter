@@ -243,6 +243,21 @@ class TurbopufferAdapterTest < ActiveSupport::TestCase
     assert_equal({ level: :strong }, namespace.last_query[:consistency])
   end
 
+  test "a select of every attribute leaves vectors out" do
+    query = Arel::Visitors::TurbopufferQuery.new(op: :select, namespace: "items", include_attributes: [ "*" ])
+    namespace = FakeNamespace.new
+
+    Item.with_connection { |connection| connection.turbopuffer_select(namespace, query) }
+
+    assert_equal [ "id", "title", "published", "created_at" ], namespace.last_query[:include_attributes]
+  end
+
+  test "with_vectors selects every attribute including vectors" do
+    query, _binds = Arel::Visitors::Turbopuffer.new.compile(Item.with_vectors.arel.ast)
+
+    assert_equal [ "id", "title", "published", "created_at", "embedding" ], query.include_attributes
+  end
+
   test "a select without a consistency level sends none" do
     query = Arel::Visitors::TurbopufferQuery.new(op: :select, namespace: "items", include_attributes: [ "title" ])
     namespace = FakeNamespace.new

@@ -112,6 +112,12 @@ class TurbopufferTypeMapTest < ActiveSupport::TestCase
     assert_equal({ type: "{}f16", sparse_knn: { distance_metric: "dot_product" } }, Typed.turbopuffer_schema_hash["terms"])
   end
 
+  test "dense and sparse vector attributes are vectors, everything else is not" do
+    vectors = Typed.turbopuffer_attributes.select(&:vector?).map(&:name)
+
+    assert_equal [ "embedding", "quantized", "terms" ], vectors
+  end
+
   test "gated and unsupported type strings raise at declaration" do
     [ "[][2]f32", "[]bytes", "[2]f64" ].each do |type|
       assert_raises(ArgumentError) { Class.new(TestRecord) { turbopuffer_attribute "x", type } }

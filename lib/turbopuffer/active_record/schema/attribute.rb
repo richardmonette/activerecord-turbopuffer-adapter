@@ -3,6 +3,7 @@ module Turbopuffer
     module Schema
       class Attribute
         TYPES = %r{\A(?:\[\])?(?:string|uuid|int|uint|float|bool|datetime)\z|\Abytes\z|\A\[\d+\](?:f16|f32|i8)\z|\A\{\}f16\z}
+        VECTOR_TYPES = %r{\A\[\d+\]|\A\{\}}
 
         attr_reader :name, :type, :filterable, :full_text_search, :ann, :glob, :regex, :notnull
 
@@ -24,6 +25,8 @@ module Turbopuffer
 
           @notnull = not_null
         end
+
+        def vector? = VECTOR_TYPES.match?(type)
       end
     end
   end

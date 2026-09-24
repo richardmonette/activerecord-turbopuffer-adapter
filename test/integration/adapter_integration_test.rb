@@ -23,8 +23,15 @@ class AdapterIntegrationTest < IntegrationTest
     assert_equal 10, found.views
     assert_equal true, found.published
     assert_equal [ "arctic", "mammal" ], found.tags
-    assert_equal [ 1.0, 0.0 ], found.embedding
     assert_equal created.created_at.to_i, found.created_at.to_i
+  end
+
+  test "vectors are only loaded when asked for" do
+    created = walrus
+
+    assert_raises(ActiveModel::MissingAttributeError) { Doc.find(created.id).embedding }
+    assert_equal [ 1.0, 0.0 ], Doc.with_vectors.find(created.id).embedding
+    assert_equal [ [ 1.0, 0.0 ] ], Doc.pluck(:embedding)
   end
 
   test "update and destroy" do
@@ -196,7 +203,7 @@ class AdapterIntegrationTest < IntegrationTest
     raw = "hi\x00there".b
     created = Exotic.create!(payload: raw, quantized: [ 1, -2 ], terms: { "walrus" => 0.5, "tusk" => 1.0 })
 
-    found = Exotic.find(created.id)
+    found = Exotic.with_vectors.find(created.id)
 
     assert_equal raw, found.payload
     assert_equal [ 1, -2 ], found.quantized
