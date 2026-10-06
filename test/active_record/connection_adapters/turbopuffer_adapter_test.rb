@@ -20,6 +20,13 @@ class TurbopufferAdapterTest < ActiveSupport::TestCase
     turbopuffer_attribute "title", "string"
   end
 
+  class Embedded < TestRecord
+    self.table_name = "embedded"
+
+    turbopuffer_attribute "id", "string"
+    turbopuffer_attribute "body", "string", embed: "baai/bge-m3"
+  end
+
   class ConfiguredRecord < TestRecord
     self.abstract_class = true
 
@@ -241,6 +248,16 @@ class TurbopufferAdapterTest < ActiveSupport::TestCase
     Item.with_connection { |connection| connection.turbopuffer_aggregate(namespace, query) }
 
     assert_equal({ level: :strong }, namespace.last_query[:consistency])
+  end
+
+  test "an insert into a namespace with an embedded attribute sends the distance metric" do
+    query = Arel::Visitors::TurbopufferQuery.new(op: :insert, namespace: "embedded", upsert_rows: [ { "id" => "a", "body" => "walrus" } ])
+    namespace = FakeNamespace.new
+
+    Embedded.with_connection { |connection| connection.turbopuffer_insert(namespace, query) }
+
+    assert_equal "cosine_distance", namespace.last_write[:distance_metric]
+    assert_equal({ type: "string", embed: "baai/bge-m3" }, namespace.last_write[:schema]["body"])
   end
 
   test "a select of every attribute leaves vectors out" do

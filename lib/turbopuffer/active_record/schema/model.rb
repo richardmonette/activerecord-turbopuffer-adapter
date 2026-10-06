@@ -48,10 +48,10 @@ module Turbopuffer
         end
 
         class_methods do
-          def turbopuffer_attribute(name, type, not_null: 0, filterable: false,
-                                    full_text_search: false, ann: false, glob: false, regex: false)
+          def turbopuffer_attribute(name, type, not_null: 0, filterable: false, full_text_search: false,
+                                    ann: false, glob: false, regex: false, embed: nil)
             attribute = ::Turbopuffer::ActiveRecord::Schema::Attribute.new(
-              name.to_s, type, not_null:, filterable:, full_text_search:, ann:, glob:, regex:
+              name.to_s, type, not_null:, filterable:, full_text_search:, ann:, glob:, regex:, embed:
             )
 
             self.turbopuffer_attributes =
@@ -119,6 +119,7 @@ module Turbopuffer
               attrs[:ann] = true if attribute.ann
               attrs[:glob] = true if attribute.glob
               attrs[:regex] = true if attribute.regex
+              attrs[:embed] = attribute.embed if attribute.embed
               attrs[:sparse_knn] = { distance_metric: "dot_product" } if attribute.type == "{}f16"
 
               schema[attribute.name] = attrs

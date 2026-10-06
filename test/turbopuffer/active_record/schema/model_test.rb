@@ -80,6 +80,22 @@ class Turbopuffer::ActiveRecord::Schema::ModelTest < ActiveSupport::TestCase
     assert_equal({ "title" => { type: "string", glob: true, regex: true } }, model.turbopuffer_schema_hash)
   end
 
+  test "the schema hash carries the embed option as a model name or a config" do
+    model = build_model("Embedded") do
+      turbopuffer_attribute "body", "string", embed: "baai/bge-m3"
+      turbopuffer_attribute "title", "string", embed: { model: "baai/bge-m3", attribute: "title_vector", dims: 256 }
+    end
+
+    assert_equal "baai/bge-m3", model.turbopuffer_schema_hash["body"][:embed]
+    assert_equal({ model: "baai/bge-m3", attribute: "title_vector", dims: 256 }, model.turbopuffer_schema_hash["title"][:embed])
+  end
+
+  test "embed is only allowed on string attributes" do
+    assert_raises(ArgumentError) do
+      build_model("BadEmbed") { turbopuffer_attribute "views", "int", embed: "baai/bge-m3" }
+    end
+  end
+
   test "the distance metric defaults to cosine_distance" do
     model = build_model("DefaultMetric") { turbopuffer_attribute "id", "string" }
 

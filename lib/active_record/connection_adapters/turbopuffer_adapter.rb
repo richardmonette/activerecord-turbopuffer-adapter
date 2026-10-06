@@ -151,7 +151,7 @@ module ActiveRecord
           schema: model.turbopuffer_schema_hash
         }
 
-        if model.turbopuffer_attributes.any?(&:ann)
+        if model.turbopuffer_attributes.any? { |attribute| attribute.ann || attribute.embed }
           tpuf_insert_args[:distance_metric] = model.turbopuffer_distance_metric
         end
 

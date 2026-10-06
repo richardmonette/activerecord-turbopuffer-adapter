@@ -36,6 +36,13 @@ class Exotic < IntegrationRecord
   turbopuffer_attribute "terms", "{}f16"
 end
 
+class Embedded < IntegrationRecord
+  self.table_name = "embedded"
+
+  turbopuffer_attribute "id", "uuid"
+  turbopuffer_attribute "body", "string", embed: "baai/bge-m3"
+end
+
 class Scratch < IntegrationRecord
   self.table_name = "scratch"
 
@@ -76,5 +83,6 @@ Minitest.after_run do
     Doc.delete_all
     Scratch.delete_all
     Exotic.delete_all
+    Embedded.delete_all
   end
 end

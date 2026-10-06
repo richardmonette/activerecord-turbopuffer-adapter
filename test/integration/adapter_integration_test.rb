@@ -210,6 +210,15 @@ class AdapterIntegrationTest < IntegrationTest
     assert_equal({ "walrus" => 0.5, "tusk" => 1.0 }, found.terms)
   end
 
+  test "server-side embeddings rank by the meaning of a text query" do
+    Embedded.create!(body: "the walrus swims in the arctic")
+    Embedded.create!(body: "a recipe for chocolate cake")
+
+    nearest = Embedded.rank_by("body", "ANN", [ "Embed", "sea mammals" ]).limit(1).pluck(:body)
+
+    assert_equal [ "the walrus swims in the arctic" ], nearest
+  end
+
   test "rank_by ANN orders by vector distance" do
     walrus
     narwhal

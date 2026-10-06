@@ -56,6 +56,17 @@ class Document < ApplicationRecord
 end
 ```
 
+Alternatively, turbopuffer can generate embeddings for you. Declare `embed` on a string attribute and the vector is computed on write:
+
+```ruby
+class Document < ApplicationRecord
+  turbopuffer_attribute "id",   "uuid",   not_null: 1
+  turbopuffer_attribute "body", "string", embed: "openai/text-embedding-3-small"
+end
+```
+
+turbopuffer stores the vector in a computed `embed_body` attribute. `embed` also accepts a hash (`model:`, `attribute:`, `dims:`, `dtype:`) to name the vector attribute or set its size. Embedding is billed per token by model, see https://turbopuffer.com/docs/embedding for the supported models.
+
 ### Creating records
 
 ```ruby
@@ -104,6 +115,7 @@ Document.find("018f...")
 
 Document.rank_by("vector", "ANN", query_vector).limit(10)
 Document.rank_by("text", "BM25", "quick walrus").limit(10)
+Document.rank_by("body", "ANN", ["Embed", "sea mammals"]).limit(10)
 
 Document.consistency(:eventual).where(published: true)
 

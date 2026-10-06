@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.7
+
+- Server-side embeddings: `turbopuffer_attribute "body", "string", embed: "openai/text-embedding-3-small"` has turbopuffer embed the text on write, and `rank_by("body", "ANN", ["Embed", "query text"])` searches it by meaning
+
 ## 0.1.6
 
 - Vector attributes are no longer loaded by default; `Document.with_vectors` (or an explicit `select` / `pluck`) fetches them. Reading an unloaded vector raises `ActiveModel::MissingAttributeError`
