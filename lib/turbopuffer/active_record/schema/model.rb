@@ -13,6 +13,27 @@ module Turbopuffer
           class_attribute :_turbopuffer_consistency,      instance_accessor: false, default: nil
         end
 
+        def turbopuffer_namespace = @turbopuffer_namespace
+
+        def update_columns(...) = with_turbopuffer_namespace { super }
+
+        private
+
+        def init_internals
+          @turbopuffer_namespace = ::Turbopuffer::ActiveRecord.namespace_override ||
+            self.class.current_scope.try(:turbopuffer_namespace)
+          super
+        end
+
+        def _create_record(...) = with_turbopuffer_namespace { super }
+        def _update_row(...)    = with_turbopuffer_namespace { super }
+        def _delete_row(...)    = with_turbopuffer_namespace { super }
+        def _find_record(...)   = with_turbopuffer_namespace { super }
+
+        def with_turbopuffer_namespace(&block)
+          ::Turbopuffer::ActiveRecord.with_namespace(@turbopuffer_namespace, &block)
+        end
+
         class << self
           def namespaces
             ::ActiveRecord::Base.descendants.select do |model|
@@ -80,6 +101,10 @@ module Turbopuffer
 
           def with_vectors
             select(*turbopuffer_attributes.map(&:name))
+          end
+
+          def namespace(name)
+            annotate("#{NAMESPACE_ANNOTATION}#{name}").extending(::Turbopuffer::ActiveRecord::NamespaceScope)
           end
 
           def glob(pattern, case_sensitive: true)

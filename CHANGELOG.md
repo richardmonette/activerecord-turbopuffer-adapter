@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.8
+
+- Namespace per tenant: `Document.namespace("documents-42")` scopes reads, writes, `update_all`, `delete_all` and `insert_all` to that namespace; records remember their namespace so `save`, `update!`, `reload` and `destroy` use it
+
 ## 0.1.7
 
 - Server-side embeddings: `turbopuffer_attribute "body", "string", embed: "openai/text-embedding-3-small"` has turbopuffer embed the text on write, and `rank_by("body", "ANN", ["Embed", "query text"])` searches it by meaning

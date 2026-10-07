@@ -316,6 +316,26 @@ class TurbopufferVisitorTest < ActiveSupport::TestCase
     assert_equal [ "And", [ [ "scores", "AnyGte", 1 ], [ "scores", "AnyLte", 5 ] ] ], query.filters
   end
 
+  test "namespace overrides the namespace without changing the model lookup" do
+    query, _binds = compile(Blog.namespace("blogs-42").where(title: "walrus"))
+
+    assert_equal "blogs", query.namespace
+    assert_equal "blogs-42", query.namespace_override
+    assert_equal [ "title", "Eq", "walrus" ], query.filters
+  end
+
+  test "the namespace override is unset by default" do
+    query, _binds = compile(Blog.where(title: "walrus"))
+
+    assert_nil query.namespace_override
+  end
+
+  test "the last namespace call wins" do
+    query, _binds = compile(Blog.namespace("blogs-1").namespace("blogs-2"))
+
+    assert_equal "blogs-2", query.namespace_override
+  end
+
   test "consistency becomes a query option" do
     query, _binds = compile(Blog.consistency(:eventual).where(title: "walrus"))
 

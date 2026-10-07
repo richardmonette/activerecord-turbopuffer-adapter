@@ -210,6 +210,33 @@ class AdapterIntegrationTest < IntegrationTest
     assert_equal({ "walrus" => 0.5, "tusk" => 1.0 }, found.terms)
   end
 
+  test "a namespace per tenant isolates documents and follows records through their writes" do
+    tenant_a = Doc.namespace("docs-tenant-a")
+    tenant_b = Doc.namespace("docs-tenant-b")
+
+    created = tenant_a.create!(title: "A", body: "a", embedding: [ 1.0, 0.0 ])
+    tenant_b.create!(title: "B", body: "b", embedding: [ 0.0, 1.0 ])
+    tenant_b.insert_all([ { title: "B2", body: "b2", embedding: [ 0.0, 1.0 ] } ])
+
+    assert_equal [ "A" ], tenant_a.pluck(:title)
+    assert_equal [ "B", "B2" ], tenant_b.pluck(:title).sort
+    assert_equal 0, Doc.count
+
+    doc = tenant_a.find(created.id)
+    assert_equal "docs-tenant-a", doc.turbopuffer_namespace
+
+    doc.update!(title: "A2")
+    assert_equal [ "A2" ], tenant_a.pluck(:title)
+    assert_equal "A2", doc.reload.title
+
+    doc.destroy
+    assert_equal 0, tenant_a.count
+    assert_equal 2, tenant_b.count
+  ensure
+    Doc.namespace("docs-tenant-a").delete_all
+    Doc.namespace("docs-tenant-b").delete_all
+  end
+
   test "server-side embeddings rank by the meaning of a text query" do
     Embedded.create!(body: "the walrus swims in the arctic")
     Embedded.create!(body: "a recipe for chocolate cake")

@@ -132,6 +132,20 @@ Document
 
 > Eventual reads are cheaper but may not include writes from the last few seconds. Set a default with `turbopuffer_consistency "eventual"` in a model or `consistency: eventual` in `database.yml`. Strong is the default.
 
+### Namespaces per tenant
+
+turbopuffer recommends one namespace per tenant: a query can only ever see that tenant's documents, and search covers just the documents that matter rather than everyone's. `namespace` scopes a model to any namespace, and records remember where they were loaded from, so `update!`, `reload` and `destroy` go back to the same place.
+
+```ruby
+Document.namespace("documents-#{tenant.id}").create!(title: "Hello")
+Document.namespace("documents-#{tenant.id}").where(published: true)
+
+doc = Document.namespace("documents-#{tenant.id}").find(id)
+doc.update!(published: true)
+```
+
+The name is used as given (under `namespace_prefix` if one is set). Without `namespace`, a model's table name is its namespace.
+
 ### Errors
 
 Turbopuffer errors are raised as the ActiveRecord exceptions a Rails app already handles.

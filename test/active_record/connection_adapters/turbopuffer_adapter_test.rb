@@ -85,6 +85,82 @@ class TurbopufferAdapterTest < ActiveSupport::TestCase
     def last_write = @writes.last
   end
 
+  class FakeClient
+    attr_reader :namespaces
+
+    def initialize
+      @namespaces = []
+    end
+
+    def namespace(name)
+      @namespaces << name
+      FakeNamespace.new
+    end
+  end
+
+  def with_fake_client(model)
+    client = FakeClient.new
+
+    model.with_connection do |connection|
+      saved = connection.instance_variable_get(:@raw_connection)
+      connection.instance_variable_set(:@raw_connection, client)
+
+      begin
+        yield client
+      ensure
+        connection.instance_variable_set(:@raw_connection, saved)
+      end
+    end
+  end
+
+  test "queries go to the table name namespace by default" do
+    with_fake_client(Item) do |client|
+      Item.where(title: "walrus").to_a
+      Item.create!(title: "walrus")
+
+      assert_equal [ "items", "items" ], client.namespaces
+    end
+  end
+
+  test "a namespaced relation sends selects, counts, updates and deletes to that namespace" do
+    with_fake_client(Item) do |client|
+      scope = Item.namespace("items-42")
+
+      scope.where(title: "walrus").to_a
+      scope.count
+      scope.where(title: "walrus").update_all(published: true)
+      scope.where(title: "walrus").delete_all
+      scope.insert_all([ { title: "narwhal" } ])
+
+      assert_equal [ "items-42" ] * 5, client.namespaces
+    end
+  end
+
+  test "a record remembers its namespace for saves, reloads and destroys" do
+    with_fake_client(Item) do |client|
+      item = Item.namespace("items-42").create!(title: "walrus")
+      assert_equal "items-42", item.turbopuffer_namespace
+
+      item.update!(title: "narwhal")
+      item.update_columns(title: "seal")
+      item.destroy
+
+      assert_equal [ "items-42" ] * 4, client.namespaces
+    end
+  end
+
+  test "a record built outside a namespace has none" do
+    assert_nil Item.new(title: "walrus").turbopuffer_namespace
+  end
+
+  test "the namespace prefix still applies to an overridden namespace" do
+    with_fake_client(Configured) do |client|
+      Configured.namespace("configured-42").where(title: "walrus").to_a
+
+      assert_equal [ "configured-42" ], client.namespaces
+    end
+  end
+
   def build_query(rows, on_duplicate: :skip)
     Item.with_connection do |connection|
       insert_all = ActiveRecord::InsertAll.new(Item.all, connection, rows, on_duplicate:)

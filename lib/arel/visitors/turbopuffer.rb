@@ -11,7 +11,8 @@ module Arel::Visitors
         include_attributes: @include_attributes,
         aggregate_by: @aggregate_by,
         upsert_rows: @upsert_rows,
-        consistency: @consistency
+        consistency: @consistency,
+        namespace_override: @namespace_override
       }
     end
     def to_s = JSON.generate(to_h)
@@ -21,10 +22,10 @@ module Arel::Visitors
     alias == eql?
 
     attr_reader :op, :namespace, :filters, :top_k, :rank_by, :include_attributes, :upsert_rows, :aggregate_by, :group_by,
-                :consistency
+                :consistency, :namespace_override
 
     def initialize(op:, namespace:, filters: nil, top_k: nil, rank_by: nil, include_attributes: nil,
-                   upsert_rows: nil, aggregate_by: nil, group_by: nil, consistency: nil)
+                   upsert_rows: nil, aggregate_by: nil, group_by: nil, consistency: nil, namespace_override: nil)
       @op = op
       @namespace = namespace
       @filters = filters
@@ -35,6 +36,7 @@ module Arel::Visitors
       @group_by = group_by
       @upsert_rows = upsert_rows
       @consistency = consistency
+      @namespace_override = namespace_override
     end
   end
 
@@ -124,8 +126,17 @@ module Arel::Visitors
         include_attributes: attributes.flat_map { |p| visit(p) },
         group_by:           core.groups.map { |g| visit(g) },
         aggregate_by:       aggregate && visit(aggregate),
-        consistency:        consistency_hint(core.optimizer_hints)
+        consistency:        consistency_hint(core.optimizer_hints),
+        namespace_override: namespace_annotation(core.comment)
       )
+    end
+
+    def namespace_annotation(comment)
+      return unless comment
+
+      prefix = ::Turbopuffer::ActiveRecord::NAMESPACE_ANNOTATION
+      annotation = comment.values.reverse.find { |value| value.start_with?(prefix) }
+      annotation&.delete_prefix(prefix)
     end
 
     def consistency_hint(hints)
@@ -152,18 +163,20 @@ module Arel::Visitors
       rows = o.values ? visit(o.values) : [ [] ]
 
       TurbopufferQuery.new(
-        op:          :update,
-        namespace:   visit(o.relation),
-        filters:     conjoin(o.wheres.map { |w| visit(w) }),
-        upsert_rows: rows
+        op:                 :update,
+        namespace:          visit(o.relation),
+        filters:            conjoin(o.wheres.map { |w| visit(w) }),
+        upsert_rows:        rows,
+        namespace_override: namespace_annotation(o.comment)
       )
     end
 
     def visit_Arel_Nodes_DeleteStatement(o)
       TurbopufferQuery.new(
-        op:        :delete,
-        namespace: visit(o.relation),
-        filters:   conjoin(o.wheres.map { |w| visit(w) })
+        op:                 :delete,
+        namespace:          visit(o.relation),
+        filters:            conjoin(o.wheres.map { |w| visit(w) }),
+        namespace_override: namespace_annotation(o.comment)
       )
     end
 

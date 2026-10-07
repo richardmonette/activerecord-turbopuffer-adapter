@@ -299,8 +299,7 @@ module ActiveRecord
       def perform_query(raw_connection, sql, binds, type_casted_binds, prepare:, notification_payload:, batch:)
         tpuf_query = sql.is_a?(Array) ? sql.first : sql
 
-        namespace_name = [ @config[:namespace_prefix], tpuf_query.namespace ].compact_blank.join("-")
-        namespace = raw_connection.namespace(namespace_name)
+        namespace = raw_connection.namespace(namespace_name_for(tpuf_query))
 
         result = case tpuf_query.op
         when :insert then turbopuffer_insert(namespace, tpuf_query)
@@ -316,6 +315,12 @@ module ActiveRecord
 
         notification_payload[:row_count] = result.rows.size
         result
+      end
+
+      def namespace_name_for(query)
+        override = query.namespace_override || ::Turbopuffer::ActiveRecord.namespace_override
+
+        [ @config[:namespace_prefix], override || query.namespace ].compact_blank.join("-")
       end
 
       def arel_visitor
