@@ -279,8 +279,10 @@ module ActiveRecord
 
         tpuf_query_args = {
           include_attributes: fields,
-          top_k: query.top_k.present? ? query.top_k : 10_000
+          top_k: query.top_k.present? ? query.top_k : 10_000 - query.offset.to_i
         }
+
+        tpuf_query_args[:offset] = query.offset if query.offset
 
         tpuf_query_args[:rank_by] = query.rank_by.first if query.rank_by.present?
         tpuf_query_args[:filters] = query.filters if query.filters

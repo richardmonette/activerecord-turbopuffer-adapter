@@ -336,6 +336,25 @@ class TurbopufferAdapterTest < ActiveSupport::TestCase
     assert_equal({ type: "string", embed: "baai/bge-m3" }, namespace.last_write[:schema]["body"])
   end
 
+  test "a select passes the offset and keeps limit plus offset within the maximum" do
+    query = Arel::Visitors::TurbopufferQuery.new(op: :select, namespace: "items", include_attributes: [ "title" ], offset: 2_500)
+    namespace = FakeNamespace.new
+
+    Item.with_connection { |connection| connection.turbopuffer_select(namespace, query) }
+
+    assert_equal 2_500, namespace.last_query[:offset]
+    assert_equal 7_500, namespace.last_query[:top_k]
+  end
+
+  test "a select with a limit and an offset passes both" do
+    query = Arel::Visitors::TurbopufferQuery.new(op: :select, namespace: "items", include_attributes: [ "title" ], top_k: 10, offset: 20)
+    namespace = FakeNamespace.new
+
+    Item.with_connection { |connection| connection.turbopuffer_select(namespace, query) }
+
+    assert_equal({ offset: 20, top_k: 10 }, namespace.last_query.slice(:offset, :top_k))
+  end
+
   test "a select of every attribute leaves vectors out" do
     query = Arel::Visitors::TurbopufferQuery.new(op: :select, namespace: "items", include_attributes: [ "*" ])
     namespace = FakeNamespace.new

@@ -17,10 +17,27 @@ class TurbopufferVisitorTest < ActiveSupport::TestCase
     Arel::Visitors::Turbopuffer.new.compile(relation.arel.ast)
   end
 
-  test "offset is not supported" do
-    assert_raises NotImplementedError do
-      compile(Blog.offset(5))
-    end
+  test "offset becomes offset" do
+    query, _binds = compile(Blog.order(:title).limit(10).offset(20))
+
+    assert_equal 10, query.top_k
+    assert_equal 20, query.offset
+  end
+
+  test "offset without a limit leaves top_k unset" do
+    query, _binds = compile(Blog.offset(5))
+
+    assert_nil query.top_k
+    assert_equal 5, query.offset
+  end
+
+  test "offset is not supported on aggregate queries" do
+    assert_raises(NotImplementedError) { compile(Blog.offset(5).select(Blog.arel_table[Arel.star].count)) }
+  end
+
+  test "counting a limited or offset relation is not supported" do
+    assert_raises(NotImplementedError) { Blog.limit(5).count }
+    assert_raises(NotImplementedError) { Blog.offset(5).count }
   end
 
   test "limit becomes top_k" do

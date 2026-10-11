@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.9
+
+- `offset` is supported for pagination (`limit` plus `offset` must stay within turbopuffer's 10,000 maximum); counting a limited or offset relation raises `NotImplementedError` instead of a raw visitor error
+- Requires the turbopuffer gem 2.5 or newer
+
 ## 0.1.8
 
 - Namespace per tenant: `Document.namespace("documents-42")` scopes reads, writes, `update_all`, `delete_all` and `insert_all` to that namespace; records remember their namespace so `save`, `update!`, `reload` and `destroy` use it

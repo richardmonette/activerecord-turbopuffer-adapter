@@ -251,6 +251,7 @@ class AdapterIntegrationTest < IntegrationTest
     narwhal
 
     assert_equal [ "Walrus", "Narwhal" ], Doc.rank_by("embedding", "ANN", [ 0.9, 0.1 ]).limit(2).pluck(:title)
+    assert_equal [ "Narwhal" ], Doc.rank_by("embedding", "ANN", [ 0.9, 0.1 ]).limit(1).offset(1).pluck(:title)
     assert_equal [ "Narwhal", "Walrus" ], Doc.rank_by("embedding", "ANN", [ 0.1, 0.9 ]).limit(2).pluck(:title)
   end
 
@@ -265,6 +266,9 @@ class AdapterIntegrationTest < IntegrationTest
     5.times { |i| Doc.create!(title: "Doc #{i}", body: "b", views: i, embedding: [ 1.0, 0.0 ]) }
 
     assert_equal [ "Doc 4", "Doc 3" ], Doc.order(views: :desc).limit(2).pluck(:title)
+    assert_equal [ "Doc 2", "Doc 3" ], Doc.order(:views).limit(2).offset(2).pluck(:title)
+    assert_equal [ "Doc 4" ], Doc.order(:views).offset(4).pluck(:title)
+    assert_equal [], Doc.order(:views).offset(5).pluck(:title)
 
     seen = []
     Doc.find_each(batch_size: 2) { |doc| seen << doc.title }

@@ -28,5 +28,5 @@ Gem::Specification.new do |s|
   s.add_dependency "activerecord", "~> 8.1"
   s.add_dependency "base64", "~> 0.2"
   s.add_dependency "railties", "~> 8.1"
-  s.add_dependency "turbopuffer", ">= 2.4", "< 3"
+  s.add_dependency "turbopuffer", ">= 2.5", "< 3"
 end

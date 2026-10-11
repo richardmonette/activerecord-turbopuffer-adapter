@@ -12,7 +12,8 @@ module Arel::Visitors
         aggregate_by: @aggregate_by,
         upsert_rows: @upsert_rows,
         consistency: @consistency,
-        namespace_override: @namespace_override
+        namespace_override: @namespace_override,
+        offset: @offset
       }
     end
     def to_s = JSON.generate(to_h)
@@ -22,10 +23,10 @@ module Arel::Visitors
     alias == eql?
 
     attr_reader :op, :namespace, :filters, :top_k, :rank_by, :include_attributes, :upsert_rows, :aggregate_by, :group_by,
-                :consistency, :namespace_override
+                :consistency, :namespace_override, :offset
 
-    def initialize(op:, namespace:, filters: nil, top_k: nil, rank_by: nil, include_attributes: nil,
-                   upsert_rows: nil, aggregate_by: nil, group_by: nil, consistency: nil, namespace_override: nil)
+    def initialize(op:, namespace:, filters: nil, top_k: nil, rank_by: nil, include_attributes: nil, upsert_rows: nil,
+                   aggregate_by: nil, group_by: nil, consistency: nil, namespace_override: nil, offset: nil)
       @op = op
       @namespace = namespace
       @filters = filters
@@ -37,6 +38,7 @@ module Arel::Visitors
       @upsert_rows = upsert_rows
       @consistency = consistency
       @namespace_override = namespace_override
+      @offset = offset
     end
   end
 
@@ -100,7 +102,6 @@ module Arel::Visitors
     end
 
     def visit_Arel_Nodes_SelectStatement(o)
-      raise NotImplementedError, "offset is not supported, filter on a sortable attribute for cursor pagination" if o.offset
       # https://turbopuffer.com/docs/query#ordering-by-attributes: "Ordering by
       # multiple attributes isn't yet implemented."
       raise NotImplementedError, "one ranking per query, sort in Ruby after loading" if o.orders.size > 1
@@ -112,6 +113,8 @@ module Arel::Visitors
 
       aggregates, attributes = core.projections.partition { |p| aggregate?(p) }
       aggregate = aggregates.first
+
+      raise NotImplementedError, "offset is not supported on aggregate queries" if o.offset && aggregate
 
       filters = core.wheres.map { |w| visit(w) }
       counted = aggregate && counted_attribute(aggregate)
@@ -127,7 +130,8 @@ module Arel::Visitors
         group_by:           core.groups.map { |g| visit(g) },
         aggregate_by:       aggregate && visit(aggregate),
         consistency:        consistency_hint(core.optimizer_hints),
-        namespace_override: namespace_annotation(core.comment)
+        namespace_override: namespace_annotation(core.comment),
+        offset:             o.offset && visit(o.offset)
       )
     end
 
@@ -205,6 +209,10 @@ module Arel::Visitors
     def visit_Arel_Nodes_JoinSource(o)
       raise NotImplementedError, "turbopuffer has no joins" if o.right.any?
       visit(o.left)
+    end
+
+    def visit_Arel_Nodes_TableAlias(o)
+      raise NotImplementedError, "subqueries are not supported, count a limited or offset relation in Ruby after loading"
     end
 
     def visit_Arel_Table(o) = o.name
@@ -293,6 +301,7 @@ module Arel::Visitors
     def visit_Arel_Nodes_Casted(o)         = o.value_for_database
     def visit_Arel_Nodes_Quoted(o)         = o.expr
     def visit_Arel_Nodes_Limit(o)          = visit(o.expr)
+    def visit_Arel_Nodes_Offset(o)         = visit(o.expr)
     def visit_Arel_Nodes_Ascending(o)      = [ visit(o.expr), "asc" ]
     def visit_Arel_Nodes_Descending(o)     = [ visit(o.expr), "desc" ]
 

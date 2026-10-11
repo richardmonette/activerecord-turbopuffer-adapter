@@ -109,6 +109,7 @@ Document.where(tags: nil)
 Document.where(scores: 90..)
 
 Document.order(:title).limit(20)
+Document.order(:title).limit(20).offset(20)
 Document.group(:title).count
 Document.count
 Document.find("018f...")
@@ -128,7 +129,7 @@ Document
   .limit(10)
 ```
 
-> Note that turbopuffer has a limit on the maximum number of documents returned (https://turbopuffer.com/docs/query#param-limit), so Document.all.to_a etc. will only return at most 10,000 items
+> Note that turbopuffer has a limit on the maximum number of documents returned (https://turbopuffer.com/docs/query#param-limit), so Document.all.to_a etc. will only return at most 10,000 items, and `limit` plus `offset` must stay within that
 
 > Eventual reads are cheaper but may not include writes from the last few seconds. Set a default with `turbopuffer_consistency "eventual"` in a model or `consistency: eventual` in `database.yml`. Strong is the default.
 
