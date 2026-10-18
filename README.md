@@ -109,6 +109,7 @@ Document.where(tags: nil)
 Document.where(scores: 90..)
 
 Document.order(:title).limit(20)
+Document.order(:category, views: :desc)
 Document.order(:title).limit(20).offset(20)
 Document.group(:title).count
 Document.count

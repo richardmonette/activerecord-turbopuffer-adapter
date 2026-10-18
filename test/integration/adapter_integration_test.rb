@@ -266,6 +266,9 @@ class AdapterIntegrationTest < IntegrationTest
     5.times { |i| Doc.create!(title: "Doc #{i}", body: "b", views: i, embedding: [ 1.0, 0.0 ]) }
 
     assert_equal [ "Doc 4", "Doc 3" ], Doc.order(views: :desc).limit(2).pluck(:title)
+
+    Doc.where(title: [ "Doc 0", "Doc 1", "Doc 2" ]).update_all(published: true)
+    assert_equal [ "Doc 2", "Doc 1", "Doc 0", "Doc 4", "Doc 3" ], Doc.order(published: :desc, views: :desc).pluck(:title)
     assert_equal [ "Doc 2", "Doc 3" ], Doc.order(:views).limit(2).offset(2).pluck(:title)
     assert_equal [ "Doc 4" ], Doc.order(:views).offset(4).pluck(:title)
     assert_equal [], Doc.order(:views).offset(5).pluck(:title)

@@ -49,14 +49,14 @@ class TurbopufferVisitorTest < ActiveSupport::TestCase
   test "rank_by builds a ranking from its arguments" do
     query, _binds = compile(Blog.rank_by("embedding", "ANN", [ 0.1, 0.2 ]).limit(10))
 
-    assert_equal [ [ "embedding", "ANN", [ 0.1, 0.2 ] ] ], query.rank_by
+    assert_equal [ "embedding", "ANN", [ 0.1, 0.2 ] ], query.rank_by
     assert_equal 10, query.top_k
   end
 
   test "rank_by accepts a full text ranking" do
     query, _binds = compile(Blog.rank_by("title", "BM25", "quick walrus"))
 
-    assert_equal [ [ "title", "BM25", "quick walrus" ] ], query.rank_by
+    assert_equal [ "title", "BM25", "quick walrus" ], query.rank_by
   end
 
   test "rank_by passes a composed ranking through untouched" do
@@ -67,7 +67,7 @@ class TurbopufferVisitorTest < ActiveSupport::TestCase
 
     query, _binds = compile(Blog.rank_by(ranking))
 
-    assert_equal [ ranking ], query.rank_by
+    assert_equal ranking, query.rank_by
   end
 
   test "rank_by combines with a filter and a limit" do
@@ -76,7 +76,7 @@ class TurbopufferVisitorTest < ActiveSupport::TestCase
     query, _binds = compile(relation)
 
     assert_equal [ "title", "Eq", "walrus" ], query.filters
-    assert_equal [ [ "embedding", "ANN", [ 0.1, 0.2 ] ] ], query.rank_by
+    assert_equal [ "embedding", "ANN", [ 0.1, 0.2 ] ], query.rank_by
     assert_equal 5, query.top_k
   end
 
@@ -95,17 +95,25 @@ class TurbopufferVisitorTest < ActiveSupport::TestCase
   test "a single order becomes rank_by" do
     query, _binds = compile(Blog.order(:title))
 
-    assert_equal [ [ "title", "asc" ] ], query.rank_by
+    assert_equal [ "title", "asc" ], query.rank_by
   end
 
-  test "multiple orders are not supported" do
-    assert_raises NotImplementedError do
-      compile(Blog.order(:title).order(:created_at))
-    end
+  test "several orders become a list of rankings in order" do
+    query, _binds = compile(Blog.order(:title, created_at: :desc))
 
-    assert_raises NotImplementedError do
-      compile(Blog.order(:title, :created_at))
-    end
+    assert_equal [ [ "title", "asc" ], [ "created_at", "desc" ] ], query.rank_by
+  end
+
+  test "chained orders keep their order" do
+    query, _binds = compile(Blog.order(:title).order(:created_at))
+
+    assert_equal [ [ "title", "asc" ], [ "created_at", "asc" ] ], query.rank_by
+  end
+
+  test "no order leaves rank_by unset" do
+    query, _binds = compile(Blog.where(title: "walrus"))
+
+    assert_nil query.rank_by
   end
 
   test "group becomes group_by" do
@@ -436,7 +444,7 @@ class TurbopufferVisitorTest < ActiveSupport::TestCase
     query, _binds = compile(relation)
 
     assert_equal [ "created_at", "Gte", "2015-01-20T00:00:00Z" ], query.filters
-    assert_equal [ [ "created_at", "desc" ] ], query.rank_by
+    assert_equal [ "created_at", "desc" ], query.rank_by
     assert_equal 20, query.top_k
   end
 

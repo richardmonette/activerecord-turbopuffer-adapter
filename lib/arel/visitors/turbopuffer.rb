@@ -101,11 +101,18 @@ module Arel::Visitors
       end
     end
 
-    def visit_Arel_Nodes_SelectStatement(o)
-      # https://turbopuffer.com/docs/query#ordering-by-attributes: "Ordering by
-      # multiple attributes isn't yet implemented."
-      raise NotImplementedError, "one ranking per query, sort in Ruby after loading" if o.orders.size > 1
+    def ranking(orders)
+      return if orders.empty?
+      return visit(orders.first) if orders.size == 1
 
+      if orders.any? { |order| order.is_a?(Arel::Nodes::RankByNode) }
+        raise NotImplementedError, "a ranking cannot be combined with other orderings, sort in Ruby after loading"
+      end
+
+      orders.map { |order| visit(order) }
+    end
+
+    def visit_Arel_Nodes_SelectStatement(o)
       core = o.cores.last
 
       raise NotImplementedError, "distinct is not implemented yet" if core.set_quantifier
@@ -125,7 +132,7 @@ module Arel::Visitors
         namespace:          visit(core.source),
         filters:            conjoin(filters),
         top_k:              o.limit && visit(o.limit),
-        rank_by:            o.orders.map { |ord| visit(ord) },
+        rank_by:            ranking(o.orders),
         include_attributes: attributes.flat_map { |p| visit(p) },
         group_by:           core.groups.map { |g| visit(g) },
         aggregate_by:       aggregate && visit(aggregate),

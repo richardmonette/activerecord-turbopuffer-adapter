@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.10
+
+- `order` accepts several attributes (`Document.order(:category, views: :desc)`), using turbopuffer's multi-attribute ordering; combining `rank_by` with another ordering still raises `NotImplementedError`
+
 ## 0.1.9
 
 - `offset` is supported for pagination (`limit` plus `offset` must stay within turbopuffer's 10,000 maximum); counting a limited or offset relation raises `NotImplementedError` instead of a raw visitor error

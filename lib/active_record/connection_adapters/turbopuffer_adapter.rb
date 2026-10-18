@@ -284,7 +284,7 @@ module ActiveRecord
 
         tpuf_query_args[:offset] = query.offset if query.offset
 
-        tpuf_query_args[:rank_by] = query.rank_by.first if query.rank_by.present?
+        tpuf_query_args[:rank_by] = query.rank_by if query.rank_by
         tpuf_query_args[:filters] = query.filters if query.filters
         consistency = consistency_for(query)
         tpuf_query_args[:consistency] = consistency if consistency
